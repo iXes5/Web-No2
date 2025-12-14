@@ -42,7 +42,9 @@ async function fetchMovies(path, { signal } = {}) {
   return Array.isArray(json?.data) ? json.data : [];
 }
 
-// Carousel 1: 5 phim phổ biến nhất (poster to)
+/**
+ * (1) Big carousel: mỗi slide 1 phim, poster to ở giữa + overlay title/year/rate
+ */
 function HeroCarousel({ movies }) {
   if (!movies?.length) return null;
 
@@ -71,11 +73,12 @@ function HeroCarousel({ movies }) {
                     <div className="text-base sm:text-lg font-semibold">
                       {m.title} {m.year ? `(${m.year})` : ""}
                     </div>
-                    {typeof m.rate === "number" && (
-                      <div className="mt-1 text-xs sm:text-sm opacity-90">
-                        ⭐ {m.rate}
-                      </div>
-                    )}
+                    <div className="mt-1 text-xs sm:text-sm opacity-90 flex gap-3">
+                      {typeof m.rate === "number" ? <span>⭐ {m.rate}</span> : null}
+                      {m.box_office_revenue ? (
+                        <span>Revenue: {m.box_office_revenue}</span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -90,7 +93,9 @@ function HeroCarousel({ movies }) {
   );
 }
 
-// Carousel 2: 30 phim phổ biến (mỗi slide 5 phim / 1 hàng)
+/**
+ * (2) Row carousel: mỗi slide hiển thị 5 phim (1 hàng)
+ */
 function MovieRowCarousel({ title, movies }) {
   const pages = useMemo(() => chunk(movies, 5), [movies]);
   if (!pages.length) return null;
@@ -147,12 +152,14 @@ function MovieRowCarousel({ title, movies }) {
 }
 
 export default function Main() {
-  // BẢN 1 (để commit từ từ): chỉ 2 carousel đầu
-  // (1) 5 phim most-popular (to)
-  // (2) 30 phim most-popular (5 phim / slide)
+  // 3 thành phần:
+  // (1) 5 phim phổ biến nhất (to) -> /movies/most-popular limit=5
+  // (2) 30 phim phổ biến -> /movies/most-popular limit=30 (hiển thị 5 phim/slide)
+  // (3) 30 phim top rating -> /movies/top-rated limit=30 (hiển thị 5 phim/slide)
 
   const [heroMostPopular, setHeroMostPopular] = useState([]);
   const [mostPopular30, setMostPopular30] = useState([]);
+  const [topRated30, setTopRated30] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -160,22 +167,26 @@ export default function Main() {
   useEffect(() => {
     const controller = new AbortController();
 
-    async function load() {
+    async function loadAll() {
       try {
         setLoading(true);
         setError("");
 
-        const [hero, popular30] = await Promise.all([
+        const [hero, popular30, rated30] = await Promise.all([
           fetchMovies(`/movies/most-popular?page=1&limit=5`, {
             signal: controller.signal,
           }),
           fetchMovies(`/movies/most-popular?page=1&limit=30`, {
             signal: controller.signal,
           }),
+          fetchMovies(`/movies/top-rated?page=1&limit=30`, {
+            signal: controller.signal,
+          }),
         ]);
 
         setHeroMostPopular(hero);
         setMostPopular30(popular30);
+        setTopRated30(rated30);
       } catch (e) {
         if (e?.name === "AbortError") return;
         setError(e?.message || "Failed to fetch");
@@ -184,7 +195,7 @@ export default function Main() {
       }
     }
 
-    load();
+    loadAll();
     return () => controller.abort();
   }, []);
 
@@ -206,8 +217,14 @@ export default function Main() {
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4">
+      {/* (1) Big carousel - 5 phim phổ biến nhất */}
       <HeroCarousel movies={heroMostPopular} />
+
+      {/* (2) Most Popular - 30 phim, 5 phim/slide */}
       <MovieRowCarousel title="Most Popular" movies={mostPopular30} />
+
+      {/* (3) Top Rating - 30 phim, 5 phim/slide */}
+      <MovieRowCarousel title="Top Rating" movies={topRated30} />
     </main>
   );
 }
