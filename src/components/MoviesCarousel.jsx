@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { getImageUrl } from "@/lib/moviesApi";
 import {
   Carousel,
   CarouselContent,
@@ -13,7 +14,7 @@ function chunk(arr, size) {
   return out;
 }
 
-export default function MoviesCarousel({ title, movies = [], imageUrl }) {
+export default function MoviesCarousel({ title, movies = [] }) {
   const pages = useMemo(() => chunk(movies, 5), [movies]);
   const [hoveredId, setHoveredId] = useState(null);
 
@@ -24,19 +25,18 @@ export default function MoviesCarousel({ title, movies = [], imageUrl }) {
       <div className="mb-3 text-lg font-semibold">{title}</div>
 
       <Carousel opts={{ align: "start", loop: true }} className="w-full">
-        {/* QUAN TRỌNG: cho phép phần phóng to không bị cắt */}
-        <CarouselContent>
+        {/* tăng khoảng thở để hover scale 1.5x đỡ bị cắt theo chiều dọc */}
+        <CarouselContent className="py-16 -my-16">
           {pages.map((page, idx) => (
             <CarouselItem key={idx}>
-              {/* thêm padding để khi scale 1.5x không chạm trần/sàn */}
-              <div className="grid grid-cols-5 gap-3 py-8">
+              <div className="grid grid-cols-5 gap-3 py-2">
                 {page.map((m) => {
                   const isHover = hoveredId === m.id;
 
                   return (
                     <div
                       key={m.id}
-                      className="relative"
+                      className="relative overflow-visible"
                       onMouseEnter={() => setHoveredId(m.id)}
                       onMouseLeave={() => setHoveredId(null)}
                     >
@@ -49,7 +49,7 @@ export default function MoviesCarousel({ title, movies = [], imageUrl }) {
                       >
                         {m.image ? (
                           <img
-                            src={imageUrl(m.image)}
+                            src={getImageUrl(m.image)}
                             alt={m.title}
                             className="aspect-[2/3] w-full object-cover"
                             loading="lazy"

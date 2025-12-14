@@ -1,3 +1,4 @@
+import { getImageUrl } from "@/lib/moviesApi";
 import {
   Carousel,
   CarouselContent,
@@ -6,12 +7,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 
-/**
- * PosterCarousel (hero):
- * - mỗi slide 1 phim
- * - poster lớn ở giữa + overlay title/year/rate
- */
-export default function PosterCarousel({ movies = [], imageUrl }) {
+export default function PosterCarousel({ movies = [] }) {
   if (!movies.length) return null;
 
   return (
@@ -24,7 +20,7 @@ export default function PosterCarousel({ movies = [], imageUrl }) {
                 <div className="relative overflow-hidden rounded-md border bg-card">
                   {m.image ? (
                     <img
-                      src={imageUrl(m.image)}
+                      src={getImageUrl(m.image)}
                       alt={m.title}
                       className="aspect-[2/3] w-full object-cover"
                       loading="lazy"
