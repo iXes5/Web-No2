@@ -11,6 +11,7 @@ function Header() {
         {/* MSSV - Left */}
         <div className="text-gray-600 text-sm font-medium">23120346</div>
 
+
         {/* Title - Center */}
         <h1 className="absolute left-1/2 -translate-x-1/2 text-2xl font-semibold text-gray-800">
           Movies info

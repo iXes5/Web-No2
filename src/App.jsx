@@ -1,5 +1,6 @@
 import Header from "./components/Header";
 import NavBar from "./components/NavBar";
+import Footer from "./components/Footer";
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
       <main className="w-full max-w-[1200px] mx-auto px-4 py-8">
         {/* Nội dung chính của app */}
       </main>
+      <Footer />
     </div>
   );
 }
