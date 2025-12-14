@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Carousel,
   CarouselContent,
@@ -15,6 +15,8 @@ function chunk(arr, size) {
 
 export default function MoviesCarousel({ title, movies = [], imageUrl }) {
   const pages = useMemo(() => chunk(movies, 5), [movies]);
+  const [hoveredId, setHoveredId] = useState(null);
+
   if (!pages.length) return null;
 
   return (
@@ -22,30 +24,56 @@ export default function MoviesCarousel({ title, movies = [], imageUrl }) {
       <div className="mb-3 text-lg font-semibold">{title}</div>
 
       <Carousel opts={{ align: "start", loop: true }} className="w-full">
-        <CarouselContent>
+        {/* QUAN TRỌNG: cho phép phần phóng to không bị cắt */}
+        <CarouselContent className="overflow-visible">
           {pages.map((page, idx) => (
-            <CarouselItem key={idx}>
-              <div className="grid grid-cols-5 gap-3">
-                {page.map((m) => (
-                  <div
-                    key={m.id}
-                    className="overflow-hidden rounded-md border bg-card"
-                    title={m.title}
-                  >
-                    {m.image ? (
-                      <img
-                        src={imageUrl(m.image)}
-                        alt={m.title}
-                        className="aspect-[2/3] w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="aspect-[2/3] w-full bg-muted flex items-center justify-center text-muted-foreground">
-                        No image
+            <CarouselItem key={idx} className="overflow-visible">
+              {/* thêm padding để khi scale 1.5x không chạm trần/sàn */}
+              <div className="grid grid-cols-5 gap-3 overflow-visible py-8">
+                {page.map((m) => {
+                  const isHover = hoveredId === m.id;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="relative overflow-visible"
+                      onMouseEnter={() => setHoveredId(m.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                    >
+                      <div
+                        className={[
+                          "relative overflow-hidden rounded-md border bg-card",
+                          "origin-center transition-transform duration-200 ease-out",
+                          isHover ? "z-50 scale-150 shadow-2xl" : "z-0 scale-100",
+                        ].join(" ")}
+                      >
+                        {m.image ? (
+                          <img
+                            src={imageUrl(m.image)}
+                            alt={m.title}
+                            className="aspect-[2/3] w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="aspect-[2/3] w-full bg-muted flex items-center justify-center text-muted-foreground">
+                            No image
+                          </div>
+                        )}
+
+                        {isHover && (
+                          <div className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-2 text-white">
+                            <div className="text-sm font-semibold leading-snug">
+                              {m.title}
+                            </div>
+                            {m.year ? (
+                              <div className="text-xs opacity-90">{m.year}</div>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </CarouselItem>
           ))}
