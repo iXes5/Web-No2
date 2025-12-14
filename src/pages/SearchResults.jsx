@@ -7,7 +7,8 @@ const APP_TOKEN =
 
 function MovieGridCard({ movie }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="overflow-hidden rounded-md border bg-card">
+      {/* Poster */}
       {movie.image ? (
         <img
           src={getImageUrl(movie.image)}
@@ -21,10 +22,18 @@ function MovieGridCard({ movie }) {
         </div>
       )}
 
-      <div className="px-3 py-2">
-        <div className="text-sm font-medium line-clamp-1">
+      {/* Footer giống ảnh bạn gửi: nền sáng, chữ giữa */}
+      <div className="bg-white text-foreground px-3 py-2 text-center">
+        <div className="text-sm font-medium leading-snug">
           {movie.title} {movie.year ? `(${movie.year})` : ""}
         </div>
+
+        {/* Nếu API có genres là array/string thì hiển thị mờ như ảnh */}
+        {movie.genres ? (
+          <div className="mt-1 text-[11px] italic text-muted-foreground line-clamp-1">
+            {Array.isArray(movie.genres) ? movie.genres.join(", ") : movie.genres}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -108,6 +117,7 @@ export default function SearchResults() {
             <span className="font-medium text-foreground">{title}</span>
           </div>
 
+          {/* giống ảnh: 3 cột */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {movies.map((m) => (
               <MovieGridCard key={m.id} movie={m} />
