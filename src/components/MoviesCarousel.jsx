@@ -25,18 +25,18 @@ export default function MoviesCarousel({ title, movies = [], imageUrl }) {
 
       <Carousel opts={{ align: "start", loop: true }} className="w-full">
         {/* QUAN TRỌNG: cho phép phần phóng to không bị cắt */}
-        <CarouselContent className="overflow-visible">
+        <CarouselContent>
           {pages.map((page, idx) => (
-            <CarouselItem key={idx} className="overflow-visible">
+            <CarouselItem key={idx}>
               {/* thêm padding để khi scale 1.5x không chạm trần/sàn */}
-              <div className="grid grid-cols-5 gap-3 overflow-visible py-8">
+              <div className="grid grid-cols-5 gap-3 py-8">
                 {page.map((m) => {
                   const isHover = hoveredId === m.id;
 
                   return (
                     <div
                       key={m.id}
-                      className="relative overflow-visible"
+                      className="relative"
                       onMouseEnter={() => setHoveredId(m.id)}
                       onMouseLeave={() => setHoveredId(null)}
                     >
