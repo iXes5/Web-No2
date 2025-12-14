@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchMovies, getImageUrl } from "@/lib/moviesApi";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const APP_TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IjIzXzMxIiwicm9sZSI6InVzZXIiLCJhcGlfYWNjZXNzIjp0cnVlLCJpYXQiOjE3NjUzNjE3NjgsImV4cCI6MTc3MDU0NTc2OH0.O4I48nov3NLaKDSBhrPe9rKZtNs9q2Tkv4yK0uMthoo";
@@ -8,7 +17,6 @@ const APP_TOKEN =
 function MovieGridCard({ movie }) {
   return (
     <div className="overflow-hidden rounded-md border bg-card">
-      {/* Poster */}
       {movie.image ? (
         <img
           src={getImageUrl(movie.image)}
@@ -22,13 +30,11 @@ function MovieGridCard({ movie }) {
         </div>
       )}
 
-      {/* Footer giống ảnh bạn gửi: nền sáng, chữ giữa */}
       <div className="bg-white text-foreground px-3 py-2 text-center">
         <div className="text-sm font-medium leading-snug">
           {movie.title} {movie.year ? `(${movie.year})` : ""}
         </div>
 
-        {/* Nếu API có genres là array/string thì hiển thị mờ như ảnh */}
         {movie.genres ? (
           <div className="mt-1 text-[11px] italic text-muted-foreground line-clamp-1">
             {Array.isArray(movie.genres) ? movie.genres.join(", ") : movie.genres}
@@ -37,6 +43,37 @@ function MovieGridCard({ movie }) {
       </div>
     </div>
   );
+}
+
+function rangePages(current, total, delta = 1) {
+  // trả về list page numbers và string "..." để render ellipsis
+  if (total <= 1) return [1];
+
+  const pages = [];
+  const left = Math.max(1, current - delta);
+  const right = Math.min(total, current + delta);
+
+  // luôn có page 1
+  pages.push(1);
+
+  if (left > 2) pages.push("...");
+
+  for (let p = left; p <= right; p++) {
+    if (p !== 1 && p !== total) pages.push(p);
+  }
+
+  if (right < total - 1) pages.push("...");
+
+  // luôn có page total
+  if (total !== 1) pages.push(total);
+
+  // loại trùng (trường hợp current sát biên)
+  const out = [];
+  for (const x of pages) {
+    if (out.length && out[out.length - 1] === x) continue;
+    out.push(x);
+  }
+  return out;
 }
 
 export default function SearchResults() {
@@ -49,6 +86,10 @@ export default function SearchResults() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // nếu API không trả totalPages/totalItems thì ta không biết total thật.
+  // Mặc định hiển thị pagination "mở": cho Next nếu còn dữ liệu.
+  const [hasNext, setHasNext] = useState(false);
+
   const canSearch = useMemo(() => title.length > 0, [title]);
 
   useEffect(() => {
@@ -57,6 +98,7 @@ export default function SearchResults() {
     async function load() {
       if (!canSearch) {
         setMovies([]);
+        setHasNext(false);
         return;
       }
 
@@ -70,6 +112,9 @@ export default function SearchResults() {
         );
 
         setMovies(data);
+
+        // nếu trả về đúng limit thì khả năng còn trang tiếp theo
+        setHasNext(Array.isArray(data) && data.length === limit);
       } catch (e) {
         if (e?.name === "AbortError") return;
         setError(e?.message || "Search failed");
@@ -82,19 +127,21 @@ export default function SearchResults() {
     return () => controller.abort();
   }, [canSearch, title, page, limit]);
 
-  function prevPage() {
+  function setPage(nextPage) {
     setParams((p) => {
-      p.set("page", String(Math.max(1, page - 1)));
+      p.set("page", String(nextPage));
+      p.set("limit", String(limit));
+      p.set("title", title);
       return p;
     });
   }
 
-  function nextPage() {
-    setParams((p) => {
-      p.set("page", String(page + 1));
-      return p;
-    });
-  }
+  // Nếu API của bạn có totalPages, bạn thay logic này:
+  // const totalPages = ...
+  // const pageItems = rangePages(page, totalPages, 1)
+  //
+  // Còn hiện tại: chưa có total => chỉ render tối giản: Prev, current, Next.
+  // (vẫn dùng component Pagination của shadcn)
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-10">
@@ -117,28 +164,67 @@ export default function SearchResults() {
             <span className="font-medium text-foreground">{title}</span>
           </div>
 
-          {/* giống ảnh: 3 cột */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {movies.map((m) => (
               <MovieGridCard key={m.id} movie={m} />
             ))}
           </div>
 
-          <div className="mt-8 flex items-center justify-center gap-3">
-            <button
-              className="rounded-md border px-3 py-2 text-sm disabled:opacity-50"
-              onClick={prevPage}
-              disabled={page <= 1}
-            >
-              Prev
-            </button>
-            <div className="text-sm text-muted-foreground">Page {page}</div>
-            <button
-              className="rounded-md border px-3 py-2 text-sm"
-              onClick={nextPage}
-            >
-              Next
-            </button>
+          {/* Pagination shadcn */}
+          <div className="mt-8 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page <= 1) return;
+                      setPage(page - 1);
+                    }}
+                    className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+
+                {/* Hiển thị vài trang xung quanh current (fallback khi chưa biết total) */}
+                {rangePages(page, page + (hasNext ? 1 : 0), 1).map((p, idx) => {
+                  if (p === "...") {
+                    return (
+                      <PaginationItem key={`e-${idx}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+
+                  return (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(p);
+                        }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!hasNext) return;
+                      setPage(page + 1);
+                    }}
+                    className={!hasNext ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         </>
       )}
