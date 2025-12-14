@@ -1,14 +1,15 @@
-import Header from "./Header";
-import NavBar from "./NavBar";
-import Footer from "./Footer";
+import Header from "@/components/Header.jsx";
+import NavBar from "@/components/NavBar.jsx";
+import Main from "@/components/Main.jsx";
+import Footer from "@/components/Footer.jsx";
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <>
       <Header />
       <NavBar />
-      {/* content của bạn ở đây */}
+      <Main />
       <Footer />
-    </div>
+    </>
   );
 }

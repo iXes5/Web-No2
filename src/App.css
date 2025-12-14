@@ -77,6 +77,18 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* ===== Custom colors (LIGHT) ===== */
+  --page-bg: #ffffff;
+
+  --header-bg: #e8d5d5;
+  --nav-bg: #d7e2ff;
+  --footer-bg: #f0c29e;
+
+  --on-page: #0f172a;   
+  --on-header: #1f2937; 
+  --on-nav: #1f2937;
+  --on-footer: #ffffff;
 }
 
 .dark {
@@ -111,6 +123,18 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* ===== Custom colors (DARK) ===== */
+  --page-bg: #2b313a;    
+
+  --header-bg: #553030;  
+  --nav-bg: #173a63;    
+  --footer-bg: #765137;  
+
+  --on-page: #f8fafc;    
+  --on-header: #f8fafc;
+  --on-nav: #f8fafc;
+  --on-footer: #fff7ed; 
 }
 
 @layer base {
@@ -118,6 +142,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    background: var(--page-bg);
+    color: var(--on-page);
   }
 }
