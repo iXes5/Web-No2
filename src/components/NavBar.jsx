@@ -91,7 +91,7 @@ export default function NavBar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex items-center gap-2 rounded-md border border-border bg-secondary px-2 py-1">
+              <div className="flex items-center gap-2 rounded-md bg-transparent px-2 py-1">
                 <Button type="button" size="sm" variant="outline" className="h-8 bg-white text-foreground hover:bg-white/90" onClick={goLogin}>
                   Login
                 </Button>

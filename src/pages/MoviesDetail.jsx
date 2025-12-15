@@ -1,7 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchMovieById, getImageUrl, APP_TOKEN } from "@/lib/moviesApi";
+import { apiFetch } from "@/lib/http";
 import Spinner from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 // Helpers đơn giản
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
@@ -39,6 +50,16 @@ export default function MoviesDetail() {
   const [errorReviews, setErrorReviews] = useState("");
   const [reviewsPage, setReviewsPage] = useState(1);
   const REVIEWS_PAGE_SIZE = 5;
+
+  // Favorites state for this movie
+  const [favLoading, setFavLoading] = useState(true);
+  const [favError, setFavError] = useState("");
+  const [isFavorite, setIsFavorite] = useState(false);
+  const movieIdNumber = useMemo(() => {
+    // id từ route là string, backend có thể dùng số; cố gắng parse để so sánh chắc hơn
+    const n = Number(id);
+    return Number.isFinite(n) ? n : id;
+  }, [id]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,6 +115,51 @@ export default function MoviesDetail() {
     })();
     return () => controller.abort();
   }, [id]);
+
+  // Check favorites cho movie hiện tại
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        setFavLoading(true);
+        setFavError("");
+        const res = await apiFetch("/users/favorites", { method: "GET", signal: controller.signal });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+        const found = list.some((m) => {
+          const mid = m?.id ?? m?.movieId ?? m?.movie_id;
+          return String(mid) === String(movieIdNumber);
+        });
+        setIsFavorite(found);
+      } catch (e) {
+        if (e?.name !== "AbortError") setFavError(e?.message || "Failed to load favorites status");
+      } finally {
+        setFavLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [movieIdNumber]);
+
+  async function addToFavorites() {
+    try {
+      setFavError("");
+      // POST /users/favorites/{movieId}
+      const res = await apiFetch(`/users/favorites/${encodeURIComponent(movieIdNumber)}`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `Add favorite failed (HTTP ${res.status})`);
+      }
+      setIsFavorite(true);
+    } catch (e) {
+      setFavError(e?.message || "Add favorite failed");
+    }
+  }
 
   if (loading) {
     return (
@@ -156,15 +222,42 @@ export default function MoviesDetail() {
                 <div className="w-full bg-muted aspect-[2/3]" />
               )}
             </div>
+
+            {/* Nút yêu thích dưới poster (mobile-friendly) */}
+            <div className="mt-3">
+              <Button
+                disabled={favLoading || isFavorite}
+                className={`w-full ${isFavorite ? "bg-green-600 text-white hover:bg-green-600" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                onClick={addToFavorites}
+                aria-label={isFavorite ? "Already favorite" : "Add to favorites"}
+              >
+                {favLoading ? "..." : isFavorite ? "Đã yêu thích" : "Thêm vào yêu thích"}
+              </Button>
+              {favError ? (
+                <div className="mt-1 text-xs text-destructive">{favError}</div>
+              ) : null}
+            </div>
           </div>
 
           {/* Thông tin bên phải */}
           <div className="min-w-0 flex-1 space-y-5">
-            <h1 className="text-2xl font-semibold">
-              {title} {year ? <span className="text-muted-foreground text-xl">({year})</span> : null}
-            </h1>
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-2xl font-semibold">
+                {title} {year ? <span className="text-muted-foreground text-xl">({year})</span> : null}
+              </h1>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Nút yêu thích trên desktop */}
+              <Button
+                disabled={favLoading || isFavorite}
+                className={`${isFavorite ? "bg-green-600 text-white hover:bg-green-600" : ""}`}
+                onClick={addToFavorites}
+                aria-label={isFavorite ? "Already favorite" : "Add to favorites"}
+              >
+                {favLoading ? "..." : isFavorite ? "Đã yêu thích" : "Thêm vào yêu thích"}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm/grid-cols-2 gap-3">
               {fullTitle && (
                 <div className="text-sm">
                   <span className="font-semibold">Full title: </span>
@@ -334,7 +427,6 @@ export default function MoviesDetail() {
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 Page {reviewsPage} / {reviewsTotalPages}
               </div>
-              {/* Bạn giữ component pagination cũ nếu đã có; bỏ qua ở đây để tập trung spinner */}
             </div>
           </>
         )}
