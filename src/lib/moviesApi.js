@@ -58,6 +58,10 @@ export async function fetchPersonById(id, { signal, token = APP_TOKEN } = {}) {
   return fetchJson(`/persons/${encodeURIComponent(id)}`, { signal, token });
 }
 
+export async function fetchMovieById(id, { signal, token = APP_TOKEN } = {}) {
+  return fetchJson(`/movies/${encodeURIComponent(id)}`, { signal, token });
+}
+
 export function uniqById(items = []) {
   const map = new Map();
   for (const m of items || []) map.set(m.id, m);

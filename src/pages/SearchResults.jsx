@@ -128,7 +128,6 @@ export default function SearchResults() {
           { pages: SEARCH_CONFIG.PERSONS_PAGES, limit: SEARCH_CONFIG.PERSONS_LIMIT },
           { signal: controller.signal }
         );
-        console.log(allPersons);
 
         // 2) Lọc theo tên chứa query (không yêu cầu role)
         const qLower = query.toLowerCase();
