@@ -1,113 +1,131 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
-// API spec:
-// POST /users/register
+// API: POST /users/register
 // { username, email, password, phone, dob }
 // 201 -> User registered successfully
 // 409 -> User already exists
-// 401 -> Unauthorized (ví dụ khi thiếu/invalid token nếu API bảo vệ, nhưng spec ghi 401 Unauthorized)
-// Lưu ý: AuthProvider tích hợp sau; hiện chỉ gọi API trực tiếp.
+// 401 -> Unauthorized
+
+const registerSchema = z.object({
+  username: z
+    .string()
+    .min(3, "Tên đăng nhập ít nhất 3 ký tự")
+    .regex(/^[a-zA-Z0-9._-]+$/, "Tên đăng nhập chỉ chứa chữ, số, ., -, _"),
+  email: z.string().email("Email không hợp lệ"),
+  password: z.string().min(6, "Mật khẩu ít nhất 6 ký tự"),
+  phone: z
+    .string()
+    .optional()
+    .transform((v) => (v || "").trim()),
+  dob: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v),
+      "Ngày sinh phải theo định dạng YYYY-MM-DD"
+    ),
+});
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-    phone: "",
-    dob: "",
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { username: "", email: "", password: "", phone: "", dob: "" },
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
 
-  function onChange(e) {
-    const { id, value } = e.target;
-    setForm((f) => ({ ...f, [id]: value }));
-  }
-
-  async function onSubmit(e) {
-    e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-    setSubmitting(true);
-
+  async function onSubmit(values) {
     try {
-      const res = await fetch(`/api/users/register`, {
+      const payload = {
+        username: values.username.trim(),
+        email: values.email.trim(),
+        password: values.password,
+        phone: values.phone || "",
+        dob: values.dob || "",
+      };
+
+      const res = await fetch("/api/users/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          username: form.username.trim(),
-          email: form.email.trim(),
-          password: form.password,
-          phone: form.phone.trim(),
-          dob: form.dob, // YYYY-MM-DD
-        }),
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
       });
 
       if (res.status === 201) {
-        setSuccessMsg("User registered successfully");
-        // Có thể tự động điều hướng sang login sau 1–2 giây
-        setTimeout(() => navigate("/login"), 1200);
+        // Thông báo nhẹ, sau đó chuyển sang Login
+        alert("User registered successfully");
+        reset();
+        navigate("/login");
         return;
       }
 
       if (res.status === 409) {
-        setErrorMsg("User already exists");
+        setError("username", { type: "manual", message: "User already exists" });
         return;
       }
 
       if (res.status === 401) {
-        setErrorMsg("Unauthorized");
+        setError("username", { type: "manual", message: "Unauthorized" });
         return;
       }
 
       const text = await res.text().catch(() => "");
-      setErrorMsg(text || `Register failed (HTTP ${res.status})`);
-    } catch (err) {
-      setErrorMsg(err?.message || "Network error");
-    } finally {
-      setSubmitting(false);
+      setError("username", { type: "manual", message: text || `Register failed (HTTP ${res.status})` });
+    } catch (e) {
+      setError("username", { type: "manual", message: e?.message || "Network error" });
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f5f9ff] px-4">
-      <div className="w-[340px]">
-        <div className="rounded-2xl border border-[#e6eefc] shadow-sm bg-white">
-          <div className="p-5 flex items-start justify-between">
-            <div>
-              <div className="text-sm font-semibold">Sign Up</div>
-              <div className="text-xs text-slate-400">Create an account to access all features.</div>
+      <div className="w-[360px]">
+        <Card className="rounded-2xl border border-[#e6eefc] shadow-sm">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-sm">Sign Up</CardTitle>
+                <CardDescription className="text-xs text-slate-400">
+                  Create an account to access all features.
+                </CardDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className="text-sm text-sky-500 hover:underline ml-2"
+              >
+                Login
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => navigate("/login")}
-              className="text-sm text-sky-500 hover:underline ml-2"
-            >
-              Login
-            </button>
-          </div>
+          </CardHeader>
 
-          <div className="p-5">
-            <form onSubmit={onSubmit} className="space-y-3">
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
               <div>
                 <label htmlFor="username" className="block text-xs font-medium text-slate-600 mb-1">
                   Username
                 </label>
                 <input
                   id="username"
-                  value={form.username}
-                  onChange={onChange}
-                  className="w-full rounded-full border border-[#eef3fb] px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  {...register("username")}
+                  className={`w-full rounded-full border px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 ${
+                    errors.username ? "border-red-300 focus:ring-red-200" : "border-[#eef3fb] focus:ring-sky-200"
+                  }`}
                   placeholder="Enter your username"
                   autoComplete="username"
-                  required
                 />
+                {errors.username ? (
+                  <p className="text-xs text-red-600 mt-1">{errors.username.message}</p>
+                ) : null}
               </div>
 
               <div>
@@ -117,13 +135,16 @@ export default function RegisterPage() {
                 <input
                   id="email"
                   type="email"
-                  value={form.email}
-                  onChange={onChange}
-                  className="w-full rounded-full border border-[#eef3fb] px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  {...register("email")}
+                  className={`w-full rounded-full border px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 ${
+                    errors.email ? "border-red-300 focus:ring-red-200" : "border-[#eef3fb] focus:ring-sky-200"
+                  }`}
                   placeholder="m@example.com"
                   autoComplete="email"
-                  required
                 />
+                {errors.email ? (
+                  <p className="text-xs text-red-600 mt-1">{errors.email.message}</p>
+                ) : null}
               </div>
 
               <div>
@@ -133,13 +154,16 @@ export default function RegisterPage() {
                 <input
                   id="password"
                   type="password"
-                  value={form.password}
-                  onChange={onChange}
-                  className="w-full rounded-full border border-[#eef3fb] px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  {...register("password")}
+                  className={`w-full rounded-full border px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 ${
+                    errors.password ? "border-red-300 focus:ring-red-200" : "border-[#eef3fb] focus:ring-sky-200"
+                  }`}
                   placeholder="Enter your password"
                   autoComplete="new-password"
-                  required
                 />
+                {errors.password ? (
+                  <p className="text-xs text-red-600 mt-1">{errors.password.message}</p>
+                ) : null}
               </div>
 
               <div>
@@ -148,8 +172,7 @@ export default function RegisterPage() {
                 </label>
                 <input
                   id="phone"
-                  value={form.phone}
-                  onChange={onChange}
+                  {...register("phone")}
                   className="w-full rounded-full border border-[#eef3fb] px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
                   placeholder="0123456789"
                   autoComplete="tel"
@@ -163,26 +186,25 @@ export default function RegisterPage() {
                 <input
                   id="dob"
                   type="date"
-                  value={form.dob}
-                  onChange={onChange}
+                  {...register("dob")}
                   className="w-full rounded-full border border-[#eef3fb] px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
                   placeholder="YYYY-MM-DD"
                 />
+                {errors.dob ? <p className="text-xs text-red-600 mt-1">{errors.dob.message}</p> : null}
               </div>
-
-              {errorMsg ? <p className="text-xs text-red-600">{errorMsg}</p> : null}
-              {successMsg ? <p className="text-xs text-green-600">{successMsg}</p> : null}
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={isSubmitting}
                 className="w-full rounded-full bg-[#7FB0FF] hover:bg-[#6ea6f6] text-white font-medium py-2 shadow-sm transition disabled:opacity-70 mt-2"
               >
-                {submitting ? "Đang xử lý..." : "Register"}
+                {isSubmitting ? "Đang xử lý..." : "Register"}
               </button>
             </form>
-          </div>
-        </div>
+          </CardContent>
+
+          <CardFooter />
+        </Card>
       </div>
     </div>
   );
