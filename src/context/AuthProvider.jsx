@@ -7,7 +7,6 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
 
-  // Load token/user từ localStorage
   useEffect(() => {
     const t = localStorage.getItem("app_token");
     const u = localStorage.getItem("app_user");
@@ -19,7 +18,6 @@ export function AuthProvider({ children }) {
 
   const isAuthenticated = !!token && !!user;
 
-  // Đăng ký
   async function register(payload) {
     try {
       const res = await apiFetch("/users/register", {
@@ -38,7 +36,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Đăng nhập
   async function login({ username, password }) {
     try {
       const res = await apiFetch("/users/login", {
@@ -67,7 +64,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Logout
   function logout() {
     localStorage.removeItem("app_token");
     localStorage.removeItem("app_user");
@@ -75,7 +71,6 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  // Cho phép dán token thủ công (debug)
   function setTokenManually(t) {
     if (!t) return;
     localStorage.setItem("app_token", t);

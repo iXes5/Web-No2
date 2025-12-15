@@ -21,8 +21,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// Layout: 5 columns x 5 rows = 25 items per page
-const UI_PAGE_SIZE = 25;
+const UI_PAGE_SIZE = 15;
 
 function getPageRange(current, total, maxButtons = 9) {
   if (!total || total < 1) return [1];
@@ -36,8 +35,6 @@ function getPageRange(current, total, maxButtons = 9) {
 }
 
 function MovieCard({ movie, onAskDelete }) {
-  // Favorites object shape (example provided):
-  // { id: "tt4154796", title: "Avengers: Endgame", image_url: "https://..." , release_year: 2019, ... }
   const mid = movie?.id;
   const title = movie?.title || "Untitled";
   const img = movie?.image_url || "";
@@ -80,7 +77,6 @@ export default function Favorites() {
   const startIdx = (uiPage - 1) * UI_PAGE_SIZE;
   const pageSlice = items.slice(startIdx, startIdx + UI_PAGE_SIZE);
 
-  // Delete dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState({ id: null, title: "" });
   const [deleting, setDeleting] = useState(false);
@@ -128,13 +124,11 @@ export default function Favorites() {
         const text = await res.text().catch(() => "");
         throw new Error(text || `Delete failed (HTTP ${res.status})`);
       }
-      // Remove locally
       setItems((prev) => prev.filter((m) => String(m?.id) !== String(pendingDelete.id)));
       setConfirmOpen(false);
 
-      // Adjust current page if needed (e.g., page becomes empty)
       setUiPage((p) => {
-        const newTotal = Math.max(1, Math.ceil((prevLengthAfterDelete(prev)) / UI_PAGE_SIZE));
+        const newTotal = Math.max(1, Math.ceil((items.length - 1) / UI_PAGE_SIZE));
         return Math.min(p, newTotal);
       });
     } catch (e) {
@@ -142,11 +136,6 @@ export default function Favorites() {
     } finally {
       setDeleting(false);
     }
-  }
-
-  // Helper to compute new length after delete for page adjust
-  function prevLengthAfterDelete(prev) {
-    return Math.max(0, prev.length - 1);
   }
 
   return (
@@ -160,14 +149,12 @@ export default function Favorites() {
         <div className="py-12 text-center text-muted-foreground">No favorites yet.</div>
       ) : (
         <>
-          {/* Grid: 5 columns x 5 rows per page */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {pageSlice.map((m) => (
               <MovieCard key={m.id || m.title} movie={m} onAskDelete={onAskDelete} />
             ))}
           </div>
 
-          {/* Pagination (shadcn) */}
           <div className="mt-6 flex justify-center">
             <Pagination>
               <PaginationContent>
@@ -213,7 +200,6 @@ export default function Favorites() {
         </>
       )}
 
-      {/* Delete confirm dialog */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>

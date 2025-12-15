@@ -1,6 +1,5 @@
 import { APP_TOKEN } from "@/lib/moviesApi";
 
-// Base URL tuyệt đối theo backend của bạn
 export const API_BASE = "https://34.124.214.214:2423/api";
 
 export function apiUrl(path) {
@@ -8,12 +7,10 @@ export function apiUrl(path) {
   return `${API_BASE}${p}`;
 }
 
-// Helper fetch: tự động gắn x-app-token và Authorization nếu có
 export async function apiFetch(path, options = {}) {
   const url = apiUrl(path);
   const headers = new Headers(options.headers || {});
 
-  // Mặc định JSON
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
 
@@ -30,7 +27,6 @@ export async function apiFetch(path, options = {}) {
 
   const res = await fetch(url, { ...options, headers });
 
-  // Log chi tiết khi lỗi
   if (!res.ok) {
     try {
       const body = await res.text();

@@ -4,17 +4,8 @@ import { fetchMovieById, getImageUrl, APP_TOKEN } from "@/lib/moviesApi";
 import { apiFetch } from "@/lib/http";
 import Spinner from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
 
-// Helpers đơn giản
+
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 const stripHtml = (html) => (html ? String(html).replace(/<[^>]*>/g, "").trim() : "");
 const uniqueByIdOrName = (items) => {
@@ -105,7 +96,7 @@ export default function MoviesDetail() {
         console.log("[MoviesDetail] /movies/{id}/reviews response", data);
         const rows = Array.isArray(data?.data) ? data.data : [];
         setReviews(rows);
-        setReviewsPage(1); // reset page khi id thay đổi
+        setReviewsPage(1);
       } catch (e) {
         if (e?.name === "AbortError") return;
         setErrorReviews(e?.message || "Failed to load reviews");
@@ -179,7 +170,6 @@ export default function MoviesDetail() {
     );
   }
 
-  // Dữ liệu hiển thị
   const title = movie.title || "Untitled";
   const fullTitle = movie.full_title || "";
   const year = movie.year || "";
@@ -206,10 +196,8 @@ export default function MoviesDetail() {
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-12">
-      {/* BOX 1: Thông tin phim (ảnh + info) */}
       <section className="rounded-lg border bg-card p-4 md:p-6">
         <div className="flex items-start gap-6">
-          {/* Poster bên trái */}
           <div className="shrink-0 w-[260px] sm:w-[320px] md:w-[360px]">
             <div className="overflow-hidden rounded-md border bg-card">
               {poster ? (
@@ -223,7 +211,6 @@ export default function MoviesDetail() {
               )}
             </div>
 
-            {/* Nút yêu thích dưới poster (mobile-friendly) */}
             <div className="mt-3">
               <Button
                 disabled={favLoading || isFavorite}
@@ -239,14 +226,12 @@ export default function MoviesDetail() {
             </div>
           </div>
 
-          {/* Thông tin bên phải */}
           <div className="min-w-0 flex-1 space-y-5">
             <div className="flex items-center justify-between gap-3">
               <h1 className="text-2xl font-semibold">
                 {title} {year ? <span className="text-muted-foreground text-xl">({year})</span> : null}
               </h1>
 
-              {/* Nút yêu thích trên desktop */}
               <Button
                 disabled={favLoading || isFavorite}
                 className={`${isFavorite ? "bg-green-600 text-white hover:bg-green-600" : ""}`}
@@ -386,7 +371,6 @@ export default function MoviesDetail() {
         </div>
       </section>
 
-      {/* BOX 2: Reviews (+ pagination 5 / trang) */}
       <section className="mt-6 rounded-lg border bg-card p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-3">Reviews</h2>
         {loadingReviews ? (
@@ -422,7 +406,6 @@ export default function MoviesDetail() {
               ))}
             </div>
 
-            {/* Pagination: 5 / trang */}
             <div className="mt-4 flex justify-center">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 Page {reviewsPage} / {reviewsTotalPages}

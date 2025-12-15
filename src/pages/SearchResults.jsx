@@ -18,13 +18,10 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// Hiển thị 9 phim một trang (3 x 3) cho cả 2 nhóm UI
 const UI_PAGE_SIZE = 9;
 
-// Fetch persons diện rộng
 const PERSONS_FETCH = { PAGES: 20, LIMIT: 100 };
 
-// Tạo dãy số trang (tối đa 9 nút) quanh trang hiện tại
 function getPageRange(current, total, maxButtons = 9) {
   if (!total || total < 1) return [1];
   const half = Math.floor(maxButtons / 2);
@@ -36,7 +33,6 @@ function getPageRange(current, total, maxButtons = 9) {
   return pages;
 }
 
-// Chuẩn hóa movie để card thống nhất
 function normalizeMovie(m) {
   const title = m?.title ?? m?.name ?? "";
   const year = m?.year ?? m?.release_year ?? "";
@@ -107,23 +103,19 @@ export default function SearchResults() {
   const [params, setParams] = useSearchParams();
   const query = (params.get("title") || "").trim();
 
-  // UI page (9 phim/trang) cho group "Movies matching title"
   const uiPage = Math.max(1, Number(params.get("page") || 1));
   const canSearch = useMemo(() => query.length > 0, [query]);
 
-  // Group 1: Movies theo title (server trả theo page/limit, mình dùng limit=9)
   const [moviesByTitle, setMoviesByTitle] = useState([]);
   const [loadingTitle, setLoadingTitle] = useState(false);
   const [errorTitle, setErrorTitle] = useState("");
   const [titleTotalPages, setTitleTotalPages] = useState(1);
 
-  // Group 2: Movies từ persons (lọc persons có keyword TRONG name), client-side pagination 9/trang
   const [moviesByPersons, setMoviesByPersons] = useState([]);
   const [loadingPersons, setLoadingPersons] = useState(false);
   const [errorPersons, setErrorPersons] = useState("");
   const [personsPage, setPersonsPage] = useState(1);
 
-  // Movies matching title: gọi API với limit=9
   useEffect(() => {
     if (!canSearch) {
       setMoviesByTitle([]);
@@ -166,8 +158,6 @@ export default function SearchResults() {
     return () => controller.abort();
   }, [canSearch, query, uiPage]);
 
-  // Movies by persons named: fetch persons rộng, LỌC những person có keyword TRONG name (case-insensitive, includes),
-  // rồi fetch chi tiết từng person đó để lấy known_for, gộp lại thành danh sách phim.
   useEffect(() => {
     if (!canSearch) {
       setMoviesByPersons([]);
@@ -210,7 +200,7 @@ export default function SearchResults() {
 
         const normalized = uniqById(allMoviesRaw.map(normalizeMovie));
         setMoviesByPersons(normalized);
-        setPersonsPage(1); // reset trang khi đổi query
+        setPersonsPage(1); 
       } catch (e) {
         if (e?.name !== "AbortError") setErrorPersons(e?.message || "Search persons failed");
       } finally {
@@ -220,7 +210,6 @@ export default function SearchResults() {
     return () => controller.abort();
   }, [canSearch, query]);
 
-  // Helpers: set UI page (server-side, limit=9)
   function setTitlePage(nextPage) {
     const safe = Math.max(1, Math.min(nextPage, titleTotalPages || 1));
     setParams((p) => {
@@ -230,12 +219,10 @@ export default function SearchResults() {
     });
   }
 
-  // Client-side pagination cho persons (9 phim/trang)
   const personsTotalPages = Math.max(1, Math.ceil(moviesByPersons.length / UI_PAGE_SIZE));
   const personsStartIdx = (personsPage - 1) * UI_PAGE_SIZE;
   const personsSlice = moviesByPersons.slice(personsStartIdx, personsStartIdx + UI_PAGE_SIZE);
 
-  // Tối đa 9 nút số trang
   const titlePageNumbers = getPageRange(uiPage, titleTotalPages, 9);
   const personsPageNumbers = getPageRange(personsPage, personsTotalPages, 9);
 
@@ -255,7 +242,6 @@ export default function SearchResults() {
         Kết quả cho: <span className="font-medium text-foreground">{query}</span>
       </div>
 
-      {/* Group 1: Movies matching title (9 phim/trang) */}
       <section>
         <h2 className="mb-3 text-lg font-semibold">Movies matching title</h2>
 
@@ -275,7 +261,6 @@ export default function SearchResults() {
               ))}
             </div>
 
-            {/* Pagination: tối đa 9 nút số trang */}
             <div className="mt-6 flex justify-center">
               <Pagination>
                 <PaginationContent>
@@ -322,7 +307,6 @@ export default function SearchResults() {
         )}
       </section>
 
-      {/* Group 2: Movies by persons named "{query}" (9 phim/trang) */}
       <section className="mt-10">
         <h2 className="mb-3 text-lg font-semibold">Movies by persons named "{query}"</h2>
 
@@ -342,7 +326,6 @@ export default function SearchResults() {
               ))}
             </div>
 
-            {/* Pagination: tối đa 9 nút số trang */}
             <div className="mt-6 flex justify-center">
               <Pagination>
                 <PaginationContent>

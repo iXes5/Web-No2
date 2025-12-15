@@ -38,7 +38,7 @@ export default function LoginPage() {
       return;
     }
     reset();
-    navigate("/"); // NavBar sẽ tự chuyển sang Profile box do context state thay đổi
+    navigate("/"); 
   }
 
   return (

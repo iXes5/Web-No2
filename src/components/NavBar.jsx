@@ -55,7 +55,6 @@ export default function NavBar() {
     <>
       <nav className="mx-auto mt-3 max-w-[1200px] rounded-xl bg-[var(--nav-bg)] px-4 py-2 text-[var(--on-nav)]">
         <div className="flex items-center justify-between gap-4">
-          {/* Left: Home + Auth/Profile */}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -102,7 +101,6 @@ export default function NavBar() {
             )}
           </div>
 
-          {/* Right: Search */}
           <form onSubmit={onSubmit} className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />

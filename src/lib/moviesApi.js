@@ -40,7 +40,6 @@ export async function fetchPaged(path, { signal, token = APP_TOKEN } = {}) {
   };
 }
 
-// Fetch nhiều trang persons (mặc định 20 pages × 100 = 2000 persons)
 export async function fetchPersonsPages(
   { pages = 20, limit = 100 },
   { signal, token = APP_TOKEN } = {}
@@ -68,7 +67,6 @@ export function uniqById(items = []) {
   return Array.from(map.values());
 }
 
-// Generic: fetch nhiều trang của một endpoint trả movies
 export async function fetchManyPages(
   endpoint,
   { pages = 50, limit = 100, signal, token = APP_TOKEN } = {}

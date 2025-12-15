@@ -20,7 +20,6 @@ const profileSchema = z.object({
     .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Ngày sinh phải theo định dạng YYYY-MM-DD"),
 });
 
-// Lấy các field thay đổi
 function diffChanges(values, profile) {
   const changes = {};
   const orig = {
@@ -56,7 +55,6 @@ export default function Profile() {
     defaultValues: { email: "", phone: "", dob: "" },
   });
 
-  // Fetch profile khi mount
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
@@ -72,7 +70,6 @@ export default function Profile() {
         const p = data?.data || data || null;
         setProfile(p);
 
-        // Reset form theo dữ liệu hiện có
         reset({
           email: p?.email ?? "",
           phone: p?.phone ?? "",
@@ -131,7 +128,6 @@ export default function Profile() {
         <div className="py-12 text-center text-muted-foreground">No profile data.</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Bảng thông tin */}
           <Card>
             <CardHeader>
               <CardTitle>Thông tin tài khoản</CardTitle>
@@ -169,7 +165,6 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* Form chỉnh sửa */}
           <Card>
             <CardHeader>
               <CardTitle>Chỉnh sửa hồ sơ</CardTitle>

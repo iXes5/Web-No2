@@ -44,7 +44,7 @@ export default function RegisterPage() {
       return;
     }
     reset();
-    navigate("/login"); // chuyển sang trang login để đăng nhập
+    navigate("/login"); 
   }
 
   return (
