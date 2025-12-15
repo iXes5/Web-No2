@@ -2,8 +2,16 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchPersonById, getImageUrl } from "@/lib/moviesApi";
 
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
 // Dùng đúng helper trong moviesApi → gọi /api/persons/:id
-// Route trên app vẫn là /person/:id (React Router), chỉ thay đổi đường fetch data.
 
 function fmtDate(iso) {
   if (!iso) return "N/A";
@@ -21,16 +29,20 @@ export default function PersonDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Pagination cho known_for: 6 phim / trang
+  const [kfPage, setKfPage] = useState(1);
+  const KF_PAGE_SIZE = 6;
+
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
       try {
         setLoading(true);
         setError("");
-        // Quan trọng: dùng fetchPersonById (-> /api/persons/:id)
         const data = await fetchPersonById(id, { signal: controller.signal });
         console.log("[PersonDetail] data", data);
         setPerson(data || null);
+        setKfPage(1);
       } catch (e) {
         if (e?.name === "AbortError") return;
         setError(e?.message || "Failed to load person");
@@ -57,7 +69,6 @@ export default function PersonDetail() {
     );
   }
 
-  // Luôn hiển thị các dòng thông tin, dùng N/A nếu thiếu (để "không bị trống" như bạn nói)
   const name = person.name || "Unknown";
   const image = person.image ? getImageUrl(person.image) : "";
   const role = person.role || "N/A";
@@ -67,6 +78,11 @@ export default function PersonDetail() {
   const height = person.height || "N/A";
   const awards = person.awards || "N/A";
   const knownFor = Array.isArray(person.known_for) ? person.known_for : [];
+
+  // Slice known_for theo pagination
+  const kfTotalPages = Math.max(1, Math.ceil(knownFor.length / KF_PAGE_SIZE));
+  const kfStartIdx = (kfPage - 1) * KF_PAGE_SIZE;
+  const kfSlice = knownFor.slice(kfStartIdx, kfStartIdx + KF_PAGE_SIZE);
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-12">
@@ -82,7 +98,7 @@ export default function PersonDetail() {
           </div>
         </div>
 
-        {/* Thông tin phải (đơn giản, luôn có N/A) */}
+        {/* Thông tin phải */}
         <div className="min-w-0 flex-1 space-y-5">
           <h1 className="text-2xl font-semibold">{name}</h1>
 
@@ -99,12 +115,12 @@ export default function PersonDetail() {
             {summary}
           </div>
 
-          {/* Known for */}
+          {/* Known for với pagination: 6 phim / trang, 3 phim / hàng */}
           {knownFor.length > 0 && (
             <section className="pt-2">
               <h2 className="text-lg font-semibold mb-3">Known for</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {knownFor.map((m) => (
+                {kfSlice.map((m) => (
                   <Link
                     key={m.id}
                     to={`/movies/${m.id}`}
@@ -130,6 +146,41 @@ export default function PersonDetail() {
                     </div>
                   </Link>
                 ))}
+              </div>
+
+              {/* Pagination cho known_for */}
+              <div className="mt-4 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setKfPage((p) => Math.max(1, p - 1));
+                        }}
+                        className={kfPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+
+                    <PaginationItem>
+                      <PaginationLink href="#" onClick={(e) => e.preventDefault()} isActive>
+                        {kfPage} / {kfTotalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setKfPage((p) => Math.min(kfTotalPages, p + 1));
+                        }}
+                        className={kfPage >= kfTotalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             </section>
           )}
