@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthProvider";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Vui lòng nhập username"),
@@ -14,6 +15,7 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const auth = useAuth();
 
   const {
     register,
@@ -27,39 +29,20 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values) {
-    try {
-      const res = await fetch("/api/users/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          username: values.username.trim(),
-          password: values.password,
-        }),
-      });
-
-      if (res.status === 200) {
-        const json = await res.json().catch(() => ({}));
-        if (json?.token) localStorage.setItem("app_token", json.token);
-        if (json?.user) localStorage.setItem("app_user", JSON.stringify(json.user));
-        reset();
-        navigate("/");
-        return;
-      }
-
-      if (res.status === 401) {
-        setError("username", { type: "manual", message: "Invalid credentials" });
-        return;
-      }
-
-      const text = await res.text().catch(() => "");
-      setError("username", { type: "manual", message: text || `Login failed (HTTP ${res.status})` });
-    } catch (e) {
-      setError("username", { type: "manual", message: e?.message || "Network error" });
+    const res = await auth.login({
+      username: values.username.trim(),
+      password: values.password,
+    });
+    if (!res.ok) {
+      setError("username", { type: "manual", message: res.error });
+      return;
     }
+    reset();
+    navigate("/"); // NavBar sẽ tự chuyển sang Profile box do context state thay đổi
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-inherit text-inherit">
       <div className="w-[360px]">
         <Card className="rounded-2xl border border-border shadow-sm">
           <CardHeader>
@@ -68,11 +51,7 @@ export default function LoginPage() {
                 <CardTitle className="text-sm">Login</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">Sign in to continue</CardDescription>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate("/register")}
-                className="text-sm text-primary hover:underline ml-2"
-              >
+              <button type="button" onClick={() => navigate("/register")} className="text-sm text-primary hover:underline ml-2">
                 Sign Up
               </button>
             </div>
@@ -81,9 +60,7 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label htmlFor="username" className="block text-xs font-medium text-muted-foreground mb-1">
-                  Username
-                </label>
+                <label htmlFor="username" className="block text-xs font-medium text-muted-foreground mb-1">Username</label>
                 <Input
                   id="username"
                   {...register("username")}
@@ -97,9 +74,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-xs font-medium text-muted-foreground mb-1">
-                  Password
-                </label>
+                <label htmlFor="password" className="block text-xs font-medium text-muted-foreground mb-1">Password</label>
                 <Input
                   id="password"
                   type="password"
@@ -113,12 +88,7 @@ export default function LoginPage() {
                 {errors.password ? <p className="text-xs text-destructive mt-1">{errors.password.message}</p> : null}
               </div>
 
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 mt-2"
-                aria-label="Log in"
-              >
+              <Button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 mt-2">
                 {isSubmitting ? "Đang xử lý..." : "LogIn"}
               </Button>
             </form>

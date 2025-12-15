@@ -1,12 +1,14 @@
-import { Home, Search } from "lucide-react";
+import { Home, Search, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthProvider";
 
 export default function NavBar() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
+  const auth = useAuth();
 
   function goHome() {
     setKeyword("");
@@ -17,23 +19,24 @@ export default function NavBar() {
     e.preventDefault();
     const title = keyword.trim();
     if (!title) return;
-
-    // Tìm kiếm 9 phim/trang → page=1&limit=9 (nếu SearchResults đang dùng 9/phần UI)
     navigate(`/search?title=${encodeURIComponent(title)}&page=1&limit=9`);
   }
 
-  // Điều hướng tới Login/Register; việc gọi API sẽ do page Login/Register thực hiện
   function goLogin() {
     navigate("/login");
   }
   function goRegister() {
     navigate("/register");
   }
+  function doLogout() {
+    auth.logout();
+    navigate("/");
+  }
 
   return (
     <nav className="mx-auto mt-3 max-w-[1200px] rounded-xl bg-[var(--nav-bg)] px-4 py-2 text-[var(--on-nav)]">
       <div className="flex items-center justify-between gap-4">
-        {/* Left: Home + Auth box */}
+        {/* Left: Home + Auth/Profile box */}
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -44,27 +47,31 @@ export default function NavBar() {
             <Home className="h-5 w-5" />
           </button>
 
-          {/* Auth box: Login / Register */}
-          <div className="flex items-center gap-2 rounded-md border border-border bg-transparent px-2 py-1">
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 bg-white text-foreground hover:bg-white/90"
-              variant="outline"
-              onClick={goLogin}
-            >
-              Login
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 bg-white text-foreground hover:bg-white/90"
-              variant="outline"
-              onClick={goRegister}
-            >
-              Register
-            </Button>
-          </div>
+          {/* Auth/Profile box */}
+          {auth.isAuthenticated ? (
+            <div className="flex items-center gap-2 rounded-md bg-transparent px-2 py-1">
+              <User className="h-4 w-4 opacity-80" />
+              <span className="text-sm">{auth.user?.username || "User"}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 bg-white text-foreground hover:bg-white/90"
+                onClick={doLogout}
+              >
+                Logout
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-md bg-transparent px-2 py-1">
+              <Button type="button" size="sm" variant="outline" className="h-8 bg-white text-foreground hover:bg-white/90" onClick={goLogin}>
+                Login
+              </Button>
+              <Button type="button" size="sm" variant="outline" className="h-8 bg-white text-foreground hover:bg-white/90" onClick={goRegister}>
+                Register
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Right: Search */}
@@ -79,11 +86,7 @@ export default function NavBar() {
             />
           </div>
 
-          <Button
-            type="submit"
-            className="h-9 bg.white text-foreground hover:bg-white/90"
-            variant="outline"
-          >
+          <Button type="submit" className="h-9 bg-white text-foreground hover:bg-white/90" variant="outline">
             Search
           </Button>
         </form>
