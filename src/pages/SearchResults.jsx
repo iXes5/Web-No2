@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Star } from "lucide-react";
 import {
   fetchMovies,
   fetchPersonsPages,
@@ -24,7 +25,39 @@ const SEARCH_CONFIG = {
   PERSONS_LIMIT: 100,  // mỗi trang 100 persons
 };
 
+// Chuẩn hóa movie để card của group "persons" hiển thị giống hệt group "movies"
+function normalizeMovie(m) {
+  const title = m?.title ?? m?.name ?? "";
+  const year = m?.year ?? m?.release_year ?? "";
+  const image = m?.image ?? "";
+  let genres = [];
+  if (Array.isArray(m?.genres)) genres = m.genres;
+  else if (typeof m?.genres === "string") {
+    genres = m.genres.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  let rate = null;
+  if (typeof m?.rate === "number") rate = m.rate;
+  else if (typeof m?.rate === "string" && m.rate.trim() !== "") rate = m.rate;
+
+  return {
+    id: m?.id,
+    title,
+    year,
+    image,
+    genres,
+    rate,
+  };
+}
+
 function MovieCard({ movie }) {
+  // Cho phép hiển thị rate nếu là number hoặc string số
+  const rate =
+    typeof movie.rate === "number"
+      ? movie.rate
+      : typeof movie.rate === "string"
+      ? movie.rate
+      : null;
+
   return (
     <Link
       to={`/movies/${movie.id}`}
@@ -32,24 +65,33 @@ function MovieCard({ movie }) {
       aria-label={`Open details for ${movie.title}`}
       title={movie.title}
     >
-      {movie.image ? (
-        <img
-          src={getImageUrl(movie.image)}
-          alt={movie.title}
-          className="aspect-[2/3] w-full object-cover"
-          loading="lazy"
-        />
-      ) : (
-        <div className="aspect-[2/3] w-full bg-muted flex items-center justify-center text-muted-foreground">
-          No image
-        </div>
-      )}
+      <div className="relative">
+        {movie.image ? (
+          <img
+            src={getImageUrl(movie.image)}
+            alt={movie.title}
+            className="aspect-[2/3] w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="aspect-[2/3] w-full bg-muted flex items-center justify-center text-muted-foreground">
+            No image
+          </div>
+        )}
+
+        {rate !== null && (
+          <div className="absolute left-2 bottom-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-xs text-white">
+            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            <span>{rate}</span>
+          </div>
+        )}
+      </div>
 
       <div className="bg-white text-foreground px-3 py-2 text-center">
         <div className="text-sm font-medium leading-snug">
           {movie.title} {movie.year ? `(${movie.year})` : ""}
         </div>
-        {movie.genres ? (
+        {movie.genres?.length ? (
           <div className="mt-1 text-[11px] italic text-muted-foreground line-clamp-1">
             {Array.isArray(movie.genres) ? movie.genres.join(", ") : movie.genres}
           </div>
@@ -110,7 +152,7 @@ export default function SearchResults() {
     return () => controller.abort();
   }, [canSearch, query, page, limit]);
 
-  // Fetch persons diện rộng, lọc theo tên, gom known_for
+  // Fetch persons diện rộng, lọc theo tên, gom known_for (chuẩn hóa dữ liệu để card giống hệt)
   useEffect(() => {
     if (!canSearch) {
       setMoviesByPersons([]);
@@ -143,9 +185,13 @@ export default function SearchResults() {
           matched.map((p) => fetchPersonById(p.id, { signal: controller.signal }))
         );
 
-        // 4) Gộp tất cả known_for và loại trùng theo id
-        const allMovies = details.flatMap((d) => (Array.isArray(d?.known_for) ? d.known_for : []));
-        setMoviesByPersons(uniqById(allMovies));
+        // 4) Gộp tất cả known_for, CHUẨN HÓA dữ liệu, và loại trùng theo id
+        const allMoviesRaw = details.flatMap((d) =>
+          Array.isArray(d?.known_for) ? d.known_for : []
+        );
+
+        const normalized = allMoviesRaw.map(normalizeMovie);
+        setMoviesByPersons(uniqById(normalized));
       } catch (e) {
         if (e?.name !== "AbortError") setErrorPersons(e?.message || "Search persons failed");
       } finally {

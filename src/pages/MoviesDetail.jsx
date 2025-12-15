@@ -2,25 +2,28 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchMovieById, getImageUrl } from "@/lib/moviesApi";
 
-// Helpers rất đơn giản
-function toArray(v) {
-  if (!v) return [];
-  return Array.isArray(v) ? v : [v];
-}
-function namesFrom(input) {
-  const arr = toArray(input);
-  return arr
-    .map((item) => {
-      if (!item) return null;
-      if (typeof item === "string") return item;            // "Anthony Russo"
-      if (typeof item?.name === "string") return item.name; // { id, name, ... }
+// Helpers đơn giản
+const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+const stripHtml = (html) => (html ? String(html).replace(/<[^>]*>/g, "").trim() : "");
+const uniqueByIdOrName = (items) => {
+  const map = new Map();
+  for (const i of items) {
+    const key = i?.id || i?.name;
+    if (key) map.set(key, i);
+  }
+  return Array.from(map.values());
+};
+
+// Chuẩn hoá mảng người {id?, name?} từ string | {id,name} | mixed
+function toPeople(input) {
+  return toArray(input)
+    .map((x) => {
+      if (!x) return null;
+      if (typeof x === "string") return { id: null, name: x };
+      if (typeof x?.name === "string") return { id: x.id ?? null, name: x.name };
       return null;
     })
     .filter(Boolean);
-}
-function stripHtml(html) {
-  if (!html) return "";
-  return String(html).replace(/<[^>]*>/g, "").trim();
 }
 
 export default function MoviesDetail() {
@@ -65,29 +68,28 @@ export default function MoviesDetail() {
     );
   }
 
-  // Lấy dữ liệu hiển thị (cố gắng tận dụng tối đa object bạn cung cấp)
+  // Dữ liệu hiển thị
   const title = movie.title || "Untitled";
-  const fullTitle = movie.full_title || "";      // Avengers: Endgame (2019)
+  const fullTitle = movie.full_title || "";
   const year = movie.year || "";
   const poster = movie.image ? getImageUrl(movie.image) : "";
-  const runtime = movie.runtime || "";           // 181 mins
-  const awards = movie.awards || "";             // text dài tổng hợp giải thưởng
-
+  const runtime = movie.runtime || "";
+  const awards = movie.awards || "";
   const countries = Array.isArray(movie.countries) ? movie.countries : [];
   const languages = Array.isArray(movie.languages) ? movie.languages : [];
   const genres = Array.isArray(movie.genres) ? movie.genres : [];
 
-  const directors = namesFrom(movie.directors ?? movie.director);
-  const cast = namesFrom(movie.cast ?? movie.actors);
+  // Lấy directors, actors dưới dạng {id?, name}
+  const directors = uniqueByIdOrName(toPeople(movie.directors ?? movie.director));
+  const cast = uniqueByIdOrName(toPeople(movie.actors ?? movie.cast ?? movie.stars));
 
-  const ratings = movie.ratings || {};           // { imDb, metacritic, theMovieDb, filmAffinity, rottenTomatoes }
-  const boxOffice = movie.box_office || {};      // { budget, grossUSA, openingWeekendUSA, cumulativeWorldwideGross }
+  // Ratings & Box office (tuỳ chọn)
+  const ratings = movie.ratings || {};
+  const boxOffice = movie.box_office || {};
 
-  // Plot đặt CUỐI CÙNG để không che thông tin khác
+  // Plot để CUỐI CÙNG
   const plot =
-    movie.summary ||
-    movie.short_description ||
-    stripHtml(movie.plot_full || "");
+    movie.summary || movie.short_description || stripHtml(movie.plot_full || "");
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-12">
@@ -100,7 +102,7 @@ export default function MoviesDetail() {
 
       {/* Ảnh bên trái, thông tin bên phải */}
       <div className="flex items-start gap-6">
-        {/* Poster bên trái (to) */}
+        {/* Poster bên trái */}
         <div className="shrink-0 w-[260px] sm:w-[320px] md:w-[360px]">
           <div className="overflow-hidden rounded-md border bg-card">
             {poster ? (
@@ -117,12 +119,11 @@ export default function MoviesDetail() {
 
         {/* Thông tin bên phải */}
         <div className="min-w-0 flex-1 space-y-5">
-          {/* Tiêu đề + năm */}
           <h1 className="text-2xl font-semibold">
             {title} {year ? <span className="text-muted-foreground text-xl">({year})</span> : null}
           </h1>
 
-          {/* Thông tin ngắn hữu ích (in LÊN TRƯỚC) */}
+          {/* Thông tin ngắn hữu ích */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {fullTitle && (
               <div className="text-sm">
@@ -156,7 +157,7 @@ export default function MoviesDetail() {
             )}
           </div>
 
-          {/* Genres (badges) */}
+          {/* Genres */}
           {genres.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {genres.map((g) => (
@@ -170,24 +171,64 @@ export default function MoviesDetail() {
             </div>
           )}
 
-          {/* Director & Cast (Cast dưới Director) */}
+          {/* Director & Cast: item có id → Link tới /person/:id, không có id → span */}
           <div className="space-y-3">
             <div>
               <div className="text-sm font-semibold">Director</div>
-              <div className="mt-1 text-sm">
-                {directors.length ? directors.join(", ") : <span className="text-muted-foreground">N/A</span>}
+              <div className="mt-1 text-sm flex flex-wrap gap-x-2 gap-y-1">
+                {directors.length ? (
+                  directors.map((p, idx) =>
+                    p.id ? (
+                      <Link
+                        key={p.id}
+                        to={`/person/${p.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {p.name}
+                        {idx < directors.length - 1 ? "," : ""}
+                      </Link>
+                    ) : (
+                      <span key={`${p.name}-${idx}`}>
+                        {p.name}
+                        {idx < directors.length - 1 ? "," : ""}
+                      </span>
+                    )
+                  )
+                ) : (
+                  <span className="text-muted-foreground">N/A</span>
+                )}
               </div>
             </div>
 
             <div>
               <div className="text-sm font-semibold">Cast</div>
-              <div className="mt-1 text-sm">
-                {cast.length ? cast.join(", ") : <span className="text-muted-foreground">N/A</span>}
+              <div className="mt-1 text-sm flex flex-wrap gap-x-2 gap-y-1">
+                {cast.length ? (
+                  cast.map((p, idx) =>
+                    p.id ? (
+                      <Link
+                        key={p.id}
+                        to={`/person/${p.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {p.name}
+                        {idx < cast.length - 1 ? "," : ""}
+                      </Link>
+                    ) : (
+                      <span key={`${p.name}-${idx}`}>
+                        {p.name}
+                        {idx < cast.length - 1 ? "," : ""}
+                      </span>
+                    )
+                  )
+                ) : (
+                  <span className="text-muted-foreground">N/A</span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Ratings (nếu có) */}
+          {/* Ratings */}
           {(ratings.imDb ||
             ratings.metacritic ||
             ratings.theMovieDb ||
@@ -196,36 +237,16 @@ export default function MoviesDetail() {
             <div>
               <div className="text-sm font-semibold mb-1">Ratings</div>
               <div className="flex flex-wrap gap-2 text-sm">
-                {ratings.imDb && (
-                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 bg-card">
-                    IMDb: {ratings.imDb}
-                  </span>
-                )}
-                {ratings.metacritic && (
-                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 bg-card">
-                    Metacritic: {ratings.metacritic}
-                  </span>
-                )}
-                {ratings.theMovieDb && (
-                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 bg-card">
-                    TMDb: {ratings.theMovieDb}
-                  </span>
-                )}
-                {ratings.rottenTomatoes && (
-                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 bg-card">
-                    Rotten Tomatoes: {ratings.rottenTomatoes}%
-                  </span>
-                )}
-                {ratings.filmAffinity && (
-                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 bg-card">
-                    FilmAffinity: {ratings.filmAffinity}
-                  </span>
-                )}
+                {ratings.imDb && <span className="rounded-md border px-2 py-0.5 bg-card">IMDb: {ratings.imDb}</span>}
+                {ratings.metacritic && <span className="rounded-md border px-2 py-0.5 bg-card">Metacritic: {ratings.metacritic}</span>}
+                {ratings.theMovieDb && <span className="rounded-md border px-2 py-0.5 bg-card">TMDb: {ratings.theMovieDb}</span>}
+                {ratings.rottenTomatoes && <span className="rounded-md border px-2 py-0.5 bg-card">Rotten Tomatoes: {ratings.rottenTomatoes}%</span>}
+                {ratings.filmAffinity && <span className="rounded-md border px-2 py-0.5 bg-card">FilmAffinity: {ratings.filmAffinity}</span>}
               </div>
             </div>
           )}
 
-          {/* Box Office (nếu có) */}
+          {/* Box Office */}
           {(boxOffice.budget ||
             boxOffice.openingWeekendUSA ||
             boxOffice.grossUSA ||
@@ -233,35 +254,15 @@ export default function MoviesDetail() {
             <div>
               <div className="text-sm font-semibold mb-1">Box office</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                {boxOffice.budget && (
-                  <div>
-                    <span className="font-medium">Budget: </span>
-                    <span>{boxOffice.budget}</span>
-                  </div>
-                )}
-                {boxOffice.openingWeekendUSA && (
-                  <div>
-                    <span className="font-medium">Opening weekend USA: </span>
-                    <span>{boxOffice.openingWeekendUSA}</span>
-                  </div>
-                )}
-                {boxOffice.grossUSA && (
-                  <div>
-                    <span className="font-medium">Gross USA: </span>
-                    <span>{boxOffice.grossUSA}</span>
-                  </div>
-                )}
-                {boxOffice.cumulativeWorldwideGross && (
-                  <div>
-                    <span className="font-medium">Worldwide: </span>
-                    <span>{boxOffice.cumulativeWorldwideGross}</span>
-                  </div>
-                )}
+                {boxOffice.budget && <div><span className="font-medium">Budget: </span>{boxOffice.budget}</div>}
+                {boxOffice.openingWeekendUSA && <div><span className="font-medium">Opening weekend USA: </span>{boxOffice.openingWeekendUSA}</div>}
+                {boxOffice.grossUSA && <div><span className="font-medium">Gross USA: </span>{boxOffice.grossUSA}</div>}
+                {boxOffice.cumulativeWorldwideGross && <div><span className="font-medium">Worldwide: </span>{boxOffice.cumulativeWorldwideGross}</div>}
               </div>
             </div>
           )}
 
-          {/* Plot ở CUỐI CÙNG */}
+          {/* Plot (CUỐI CÙNG) */}
           {plot && (
             <div className="pt-2">
               <div className="text-sm font-semibold mb-1">Plot</div>
