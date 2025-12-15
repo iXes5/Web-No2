@@ -8,6 +8,7 @@ import {
   getImageUrl,
   uniqById,
 } from "@/lib/moviesApi";
+import Spinner from "@/components/ui/spinner";
 import {
   Pagination,
   PaginationContent,
@@ -17,16 +18,25 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// Cấu hình phạm vi tìm kiếm
-const SEARCH_CONFIG = {
-  MOVIES_LIMIT: 9,     // mỗi page 9 phim (3 cột x 3 hàng)
-  MOVIES_MAX_PAGE: 50, // giới hạn an toàn tối đa (fallback khi không có pagination từ API)
-  PERSONS_PAGES: 20,   // fetch 20 trang persons
-  PERSONS_LIMIT: 100,  // mỗi trang 100 persons
-  PERSONS_PAGE_SIZE: 9,// pagination client-side: 9 phim / trang
-};
+// Hiển thị 9 phim một trang (3 x 3) cho cả 2 nhóm UI
+const UI_PAGE_SIZE = 9;
 
-// Chuẩn hóa movie để card của group "persons" hiển thị giống hệt group "movies"
+// Fetch persons diện rộng
+const PERSONS_FETCH = { PAGES: 20, LIMIT: 100 };
+
+// Tạo dãy số trang (tối đa 9 nút) quanh trang hiện tại
+function getPageRange(current, total, maxButtons = 9) {
+  if (!total || total < 1) return [1];
+  const half = Math.floor(maxButtons / 2);
+  let start = Math.max(1, current - half);
+  let end = Math.min(total, start + maxButtons - 1);
+  start = Math.max(1, end - maxButtons + 1);
+  const pages = [];
+  for (let p = start; p <= end; p++) pages.push(p);
+  return pages;
+}
+
+// Chuẩn hóa movie để card thống nhất
 function normalizeMovie(m) {
   const title = m?.title ?? m?.name ?? "";
   const year = m?.year ?? m?.release_year ?? "";
@@ -39,15 +49,7 @@ function normalizeMovie(m) {
   let rate = null;
   if (typeof m?.rate === "number") rate = m.rate;
   else if (typeof m?.rate === "string" && m.rate.trim() !== "") rate = m.rate;
-
-  return {
-    id: m?.id,
-    title,
-    year,
-    image,
-    genres,
-    rate,
-  };
+  return { id: m?.id, title, year, image, genres, rate };
 }
 
 function MovieCard({ movie }) {
@@ -104,33 +106,30 @@ function MovieCard({ movie }) {
 export default function SearchResults() {
   const [params, setParams] = useSearchParams();
   const query = (params.get("title") || "").trim();
-  const page = Math.max(1, Number(params.get("page") || 1));
-  const limit = Number(params.get("limit") || SEARCH_CONFIG.MOVIES_LIMIT);
 
+  // UI page (9 phim/trang) cho group "Movies matching title"
+  const uiPage = Math.max(1, Number(params.get("page") || 1));
   const canSearch = useMemo(() => query.length > 0, [query]);
 
-  // Group 1: Movies theo title (có phân trang server)
+  // Group 1: Movies theo title (server trả theo page/limit, mình dùng limit=9)
   const [moviesByTitle, setMoviesByTitle] = useState([]);
   const [loadingTitle, setLoadingTitle] = useState(false);
   const [errorTitle, setErrorTitle] = useState("");
-  const [hasNextTitle, setHasNextTitle] = useState(false);
   const [titleTotalPages, setTitleTotalPages] = useState(1);
 
-  // Group 2: Movies từ persons (known_for) khớp tên (phân trang client-side)
+  // Group 2: Movies từ persons trùng tên CHÍNH XÁC (client-side pagination 9/trang)
   const [moviesByPersons, setMoviesByPersons] = useState([]);
   const [loadingPersons, setLoadingPersons] = useState(false);
   const [errorPersons, setErrorPersons] = useState("");
   const [personsPage, setPersonsPage] = useState(1);
 
-  // Fetch movies theo title (dùng fetchPaged để lấy pagination chính xác từ API)
+  // Movies matching title: gọi API với limit=9
   useEffect(() => {
     if (!canSearch) {
       setMoviesByTitle([]);
-      setHasNextTitle(false);
       setTitleTotalPages(1);
       return;
     }
-
     const controller = new AbortController();
     (async () => {
       try {
@@ -138,47 +137,42 @@ export default function SearchResults() {
         setErrorTitle("");
 
         const { data, pagination } = await fetchPaged(
-          `/movies/search?title=${encodeURIComponent(query)}&page=${page}&limit=${limit}`,
+          `/movies/search?title=${encodeURIComponent(query)}&page=${uiPage}&limit=${UI_PAGE_SIZE}`,
           { signal: controller.signal }
         );
 
-        const rows = Array.isArray(data) ? data : [];
-        setMoviesByTitle(rows);
+        setMoviesByTitle(Array.isArray(data) ? data : []);
 
-        // Nếu API trả pagination, dùng total_pages từ server
         if (pagination && typeof pagination.total_pages === "number") {
-          const total = Math.max(1, Number(pagination.total_pages));
-          setTitleTotalPages(total);
-          setHasNextTitle(page < total);
+          setTitleTotalPages(Math.max(1, Number(pagination.total_pages)));
+        } else if (pagination && typeof pagination.total_items === "number") {
+          const total = Math.ceil(Math.max(0, Number(pagination.total_items)) / UI_PAGE_SIZE);
+          setTitleTotalPages(Math.max(1, total));
         } else {
-          // Fallback khi không có pagination từ API
-          const mightHaveNext = rows.length === limit;
-          setHasNextTitle(mightHaveNext);
-          setTitleTotalPages(mightHaveNext ? page + 1 : page);
+          const totalGuess =
+            data && Array.isArray(data) ? (data.length === UI_PAGE_SIZE ? uiPage + 1 : uiPage) : 1;
+          setTitleTotalPages(Math.max(1, totalGuess));
         }
       } catch (e) {
         if (e?.name !== "AbortError") {
           setErrorTitle(e?.message || "Search movies failed");
           setMoviesByTitle([]);
-          setHasNextTitle(false);
           setTitleTotalPages(1);
         }
       } finally {
         setLoadingTitle(false);
       }
     })();
-
     return () => controller.abort();
-  }, [canSearch, query, page, limit]);
+  }, [canSearch, query, uiPage]);
 
-  // Fetch persons diện rộng, lọc theo tên, gom known_for
+  // Movies by persons named "{query}" (exact match)
   useEffect(() => {
     if (!canSearch) {
       setMoviesByPersons([]);
       setPersonsPage(1);
       return;
     }
-
     const controller = new AbortController();
     (async () => {
       try {
@@ -186,14 +180,16 @@ export default function SearchResults() {
         setErrorPersons("");
 
         const allPersons = await fetchPersonsPages(
-          { pages: SEARCH_CONFIG.PERSONS_PAGES, limit: SEARCH_CONFIG.PERSONS_LIMIT },
+          { pages: PERSONS_FETCH.PAGES, limit: PERSONS_FETCH.LIMIT },
           { signal: controller.signal }
         );
 
         const qLower = query.toLowerCase();
-        const matched = allPersons.filter((p) => (p?.name || "").toLowerCase().includes(qLower));
+        const matched = allPersons.filter(
+          (p) => (p?.name || "").trim().toLowerCase() === qLower
+        );
 
-        if (matched.length === 0) {
+        if (!matched.length) {
           setMoviesByPersons([]);
           setPersonsPage(1);
           return;
@@ -209,38 +205,34 @@ export default function SearchResults() {
 
         const normalized = uniqById(allMoviesRaw.map(normalizeMovie));
         setMoviesByPersons(normalized);
-        setPersonsPage(1); // reset về trang 1 khi query thay đổi
+        setPersonsPage(1);
       } catch (e) {
         if (e?.name !== "AbortError") setErrorPersons(e?.message || "Search persons failed");
       } finally {
         setLoadingPersons(false);
       }
     })();
-
     return () => controller.abort();
   }, [canSearch, query]);
 
-  // Helpers: set page cho group title
+  // Helpers: set UI page (server-side, limit=9)
   function setTitlePage(nextPage) {
     const safe = Math.max(1, Math.min(nextPage, titleTotalPages || 1));
     setParams((p) => {
       p.set("page", String(safe));
-      p.set("limit", String(limit));
       p.set("title", query);
       return p;
     });
   }
 
-  // Client-side pagination cho persons movies
-  const personsTotalPages = Math.max(
-    1,
-    Math.ceil(moviesByPersons.length / SEARCH_CONFIG.PERSONS_PAGE_SIZE)
-  );
-  const personsStartIdx = (personsPage - 1) * SEARCH_CONFIG.PERSONS_PAGE_SIZE;
-  const personsSlice = moviesByPersons.slice(
-    personsStartIdx,
-    personsStartIdx + SEARCH_CONFIG.PERSONS_PAGE_SIZE
-  );
+  // Client-side pagination cho persons (9 phim/trang)
+  const personsTotalPages = Math.max(1, Math.ceil(moviesByPersons.length / UI_PAGE_SIZE));
+  const personsStartIdx = (personsPage - 1) * UI_PAGE_SIZE;
+  const personsSlice = moviesByPersons.slice(personsStartIdx, personsStartIdx + UI_PAGE_SIZE);
+
+  // Tối đa 9 nút số trang
+  const titlePageNumbers = getPageRange(uiPage, titleTotalPages, 9);
+  const personsPageNumbers = getPageRange(personsPage, personsTotalPages, 9);
 
   if (!canSearch) {
     return (
@@ -258,12 +250,14 @@ export default function SearchResults() {
         Kết quả cho: <span className="font-medium text-foreground">{query}</span>
       </div>
 
-      {/* Group 1: Movies theo title */}
+      {/* Group 1: Movies matching title (9 phim/trang) */}
       <section>
         <h2 className="mb-3 text-lg font-semibold">Movies matching title</h2>
 
         {loadingTitle ? (
-          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          <div className="py-8 flex justify-center">
+            <Spinner size={24} label="Loading movies" />
+          </div>
         ) : errorTitle ? (
           <div className="py-8 text-center text-destructive">{errorTitle}</div>
         ) : moviesByTitle.length === 0 ? (
@@ -276,7 +270,7 @@ export default function SearchResults() {
               ))}
             </div>
 
-            {/* Pagination cho group title: 9 phim / trang, tổng trang từ API */}
+            {/* Pagination: tối đa 9 nút số trang */}
             <div className="mt-6 flex justify-center">
               <Pagination>
                 <PaginationContent>
@@ -285,26 +279,35 @@ export default function SearchResults() {
                       href="#"
                       onClick={(e) => {
                         e.preventDefault();
-                        if (page > 1) setTitlePage(page - 1);
+                        if (uiPage > 1) setTitlePage(uiPage - 1);
                       }}
-                      className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                      className={uiPage <= 1 ? "pointer-events-none opacity-50" : ""}
                     />
                   </PaginationItem>
 
-                  <PaginationItem>
-                    <PaginationLink href="#" onClick={(e) => e.preventDefault()} isActive>
-                      {page} / {titleTotalPages}
-                    </PaginationLink>
-                  </PaginationItem>
+                  {titlePageNumbers.map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (p !== uiPage) setTitlePage(p);
+                        }}
+                        isActive={p === uiPage}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
 
                   <PaginationItem>
                     <PaginationNext
                       href="#"
                       onClick={(e) => {
                         e.preventDefault();
-                        if (hasNextTitle) setTitlePage(page + 1);
+                        if (uiPage < titleTotalPages) setTitlePage(uiPage + 1);
                       }}
-                      className={!hasNextTitle ? "pointer-events-none opacity-50" : ""}
+                      className={uiPage >= titleTotalPages ? "pointer-events-none opacity-50" : ""}
                     />
                   </PaginationItem>
                 </PaginationContent>
@@ -314,16 +317,18 @@ export default function SearchResults() {
         )}
       </section>
 
-      {/* Group 2: Movies từ persons */}
+      {/* Group 2: Movies by persons named "{query}" (9 phim/trang) */}
       <section className="mt-10">
-        <h2 className="mb-3 text-lg font-semibold">Movies by persons matching "{query}"</h2>
+        <h2 className="mb-3 text-lg font-semibold">Movies by persons named "{query}"</h2>
 
         {loadingPersons ? (
-          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          <div className="py-8 flex justify-center">
+            <Spinner size={24} label="Loading persons movies" />
+          </div>
         ) : errorPersons ? (
           <div className="py-8 text-center text-destructive">{errorPersons}</div>
         ) : moviesByPersons.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">Không có phim theo persons.</div>
+          <div className="py-8 text-center text-muted-foreground">Không có phim theo persons trùng tên.</div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -332,7 +337,7 @@ export default function SearchResults() {
               ))}
             </div>
 
-            {/* Pagination cho group persons: 9 phim / trang */}
+            {/* Pagination: tối đa 9 nút số trang */}
             <div className="mt-6 flex justify-center">
               <Pagination>
                 <PaginationContent>
@@ -347,11 +352,20 @@ export default function SearchResults() {
                     />
                   </PaginationItem>
 
-                  <PaginationItem>
-                    <PaginationLink href="#" onClick={(e) => e.preventDefault()} isActive>
-                      {personsPage} / {personsTotalPages}
-                    </PaginationLink>
-                  </PaginationItem>
+                  {personsPageNumbers.map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (p !== personsPage) setPersonsPage(p);
+                        }}
+                        isActive={p === personsPage}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
 
                   <PaginationItem>
                     <PaginationNext

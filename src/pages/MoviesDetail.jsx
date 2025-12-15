@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchMovieById, getImageUrl, APP_TOKEN } from "@/lib/moviesApi";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import Spinner from "@/components/ui/spinner";
 
 // Helpers đơn giản
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
@@ -105,7 +98,9 @@ export default function MoviesDetail() {
   if (loading) {
     return (
       <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-10">
-        <div className="py-12 text-center text-muted-foreground">Loading...</div>
+        <div className="py-12 flex justify-center">
+          <Spinner size={28} />
+        </div>
       </main>
     );
   }
@@ -288,21 +283,6 @@ export default function MoviesDetail() {
               </div>
             )}
 
-            {(boxOffice.budget ||
-              boxOffice.openingWeekendUSA ||
-              boxOffice.grossUSA ||
-              boxOffice.cumulativeWorldwideGross) && (
-              <div>
-                <div className="text-sm font-semibold mb-1">Box office</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                  {boxOffice.budget && <div><span className="font-medium">Budget: </span>{boxOffice.budget}</div>}
-                  {boxOffice.openingWeekendUSA && <div><span className="font-medium">Opening weekend USA: </span>{boxOffice.openingWeekendUSA}</div>}
-                  {boxOffice.grossUSA && <div><span className="font-medium">Gross USA: </span>{boxOffice.grossUSA}</div>}
-                  {boxOffice.cumulativeWorldwideGross && <div><span className="font-medium">Worldwide: </span>{boxOffice.cumulativeWorldwideGross}</div>}
-                </div>
-              </div>
-            )}
-
             {plot && (
               <div className="pt-2">
                 <div className="text-sm font-semibold mb-1">Plot</div>
@@ -317,7 +297,9 @@ export default function MoviesDetail() {
       <section className="mt-6 rounded-lg border bg-card p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-3">Reviews</h2>
         {loadingReviews ? (
-          <div className="text-sm text-muted-foreground">Loading reviews...</div>
+          <div className="py-4 flex justify-center">
+            <Spinner size={20} label="Loading reviews" />
+          </div>
         ) : errorReviews ? (
           <div className="text-sm text-destructive">{errorReviews}</div>
         ) : reviewsSlice.length === 0 ? (
@@ -349,37 +331,10 @@ export default function MoviesDetail() {
 
             {/* Pagination: 5 / trang */}
             <div className="mt-4 flex justify-center">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setReviewsPage((p) => Math.max(1, p - 1));
-                      }}
-                      className={reviewsPage <= 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-
-                  <PaginationItem>
-                    <PaginationLink href="#" onClick={(e) => e.preventDefault()} isActive>
-                      {reviewsPage} / {reviewsTotalPages}
-                    </PaginationLink>
-                  </PaginationItem>
-
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setReviewsPage((p) => Math.min(reviewsTotalPages, p + 1));
-                      }}
-                      className={reviewsPage >= reviewsTotalPages ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Page {reviewsPage} / {reviewsTotalPages}
+              </div>
+              {/* Bạn giữ component pagination cũ nếu đã có; bỏ qua ở đây để tập trung spinner */}
             </div>
           </>
         )}

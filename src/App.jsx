@@ -14,7 +14,6 @@ export default function App() {
       <Header />
       <NavBar />
 
-      {/* Hiệu ứng chuyển route */}
       <Loading />
 
       <Routes>

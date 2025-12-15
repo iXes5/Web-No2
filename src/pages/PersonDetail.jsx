@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchPersonById, getImageUrl } from "@/lib/moviesApi";
-
+import Spinner from "@/components/ui/spinner";
 import {
   Pagination,
   PaginationContent,
@@ -56,7 +56,9 @@ export default function PersonDetail() {
   if (loading) {
     return (
       <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-10">
-        <div className="py-12 text-center text-muted-foreground">Loading person...</div>
+        <div className="py-12 flex justify-center">
+          <Spinner size={28} />
+        </div>
       </main>
     );
   }
