@@ -70,13 +70,6 @@ export default function PersonDetail() {
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-12">
-      {/* Breadcrumb */}
-      <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/" className="hover:underline">Home</Link>
-        <span>/</span>
-        <span className="text-foreground line-clamp-1">{name}</span>
-      </div>
-
       <div className="flex items-start gap-6">
         {/* Ảnh trái */}
         <div className="shrink-0 w-[220px] sm:w-[260px] md:w-[300px]">
