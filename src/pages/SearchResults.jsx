@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Star } from "lucide-react";
 import {
-  fetchMovies,
+  fetchPaged,
   fetchPersonsPages,
   fetchPersonById,
   getImageUrl,
@@ -17,10 +17,10 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// Cấu hình phạm vi tìm kiếm (khớp yêu cầu của bạn)
+// Cấu hình phạm vi tìm kiếm
 const SEARCH_CONFIG = {
   MOVIES_LIMIT: 9,     // mỗi page 9 phim (3 cột x 3 hàng)
-  MOVIES_MAX_PAGE: 50, // tối đa 50 trang cho search theo title
+  MOVIES_MAX_PAGE: 50, // giới hạn an toàn tối đa (fallback khi không có pagination từ API)
   PERSONS_PAGES: 20,   // fetch 20 trang persons
   PERSONS_LIMIT: 100,  // mỗi trang 100 persons
   PERSONS_PAGE_SIZE: 9,// pagination client-side: 9 phim / trang
@@ -104,8 +104,9 @@ function MovieCard({ movie }) {
 export default function SearchResults() {
   const [params, setParams] = useSearchParams();
   const query = (params.get("title") || "").trim();
-  const page = Math.min(Number(params.get("page") || 1), SEARCH_CONFIG.MOVIES_MAX_PAGE);
+  const page = Math.max(1, Number(params.get("page") || 1));
   const limit = Number(params.get("limit") || SEARCH_CONFIG.MOVIES_LIMIT);
+
   const canSearch = useMemo(() => query.length > 0, [query]);
 
   // Group 1: Movies theo title (có phân trang server)
@@ -113,6 +114,7 @@ export default function SearchResults() {
   const [loadingTitle, setLoadingTitle] = useState(false);
   const [errorTitle, setErrorTitle] = useState("");
   const [hasNextTitle, setHasNextTitle] = useState(false);
+  const [titleTotalPages, setTitleTotalPages] = useState(1);
 
   // Group 2: Movies từ persons (known_for) khớp tên (phân trang client-side)
   const [moviesByPersons, setMoviesByPersons] = useState([]);
@@ -120,11 +122,12 @@ export default function SearchResults() {
   const [errorPersons, setErrorPersons] = useState("");
   const [personsPage, setPersonsPage] = useState(1);
 
-  // Fetch movies theo title
+  // Fetch movies theo title (dùng fetchPaged để lấy pagination chính xác từ API)
   useEffect(() => {
     if (!canSearch) {
       setMoviesByTitle([]);
       setHasNextTitle(false);
+      setTitleTotalPages(1);
       return;
     }
 
@@ -134,16 +137,32 @@ export default function SearchResults() {
         setLoadingTitle(true);
         setErrorTitle("");
 
-        const data = await fetchMovies(
+        const { data, pagination } = await fetchPaged(
           `/movies/search?title=${encodeURIComponent(query)}&page=${page}&limit=${limit}`,
           { signal: controller.signal }
         );
 
         const rows = Array.isArray(data) ? data : [];
         setMoviesByTitle(rows);
-        setHasNextTitle(rows.length === limit && page < SEARCH_CONFIG.MOVIES_MAX_PAGE);
+
+        // Nếu API trả pagination, dùng total_pages từ server
+        if (pagination && typeof pagination.total_pages === "number") {
+          const total = Math.max(1, Number(pagination.total_pages));
+          setTitleTotalPages(total);
+          setHasNextTitle(page < total);
+        } else {
+          // Fallback khi không có pagination từ API
+          const mightHaveNext = rows.length === limit;
+          setHasNextTitle(mightHaveNext);
+          setTitleTotalPages(mightHaveNext ? page + 1 : page);
+        }
       } catch (e) {
-        if (e?.name !== "AbortError") setErrorTitle(e?.message || "Search movies failed");
+        if (e?.name !== "AbortError") {
+          setErrorTitle(e?.message || "Search movies failed");
+          setMoviesByTitle([]);
+          setHasNextTitle(false);
+          setTitleTotalPages(1);
+        }
       } finally {
         setLoadingTitle(false);
       }
@@ -203,8 +222,9 @@ export default function SearchResults() {
 
   // Helpers: set page cho group title
   function setTitlePage(nextPage) {
+    const safe = Math.max(1, Math.min(nextPage, titleTotalPages || 1));
     setParams((p) => {
-      p.set("page", String(nextPage));
+      p.set("page", String(safe));
       p.set("limit", String(limit));
       p.set("title", query);
       return p;
@@ -256,7 +276,7 @@ export default function SearchResults() {
               ))}
             </div>
 
-            {/* Pagination cho group title: 9 phim / trang */}
+            {/* Pagination cho group title: 9 phim / trang, tổng trang từ API */}
             <div className="mt-6 flex justify-center">
               <Pagination>
                 <PaginationContent>
@@ -273,7 +293,7 @@ export default function SearchResults() {
 
                   <PaginationItem>
                     <PaginationLink href="#" onClick={(e) => e.preventDefault()} isActive>
-                      {page} / {SEARCH_CONFIG.MOVIES_MAX_PAGE}
+                      {page} / {titleTotalPages}
                     </PaginationLink>
                   </PaginationItem>
 
