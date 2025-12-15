@@ -32,7 +32,6 @@ export async function fetchMovies(path, { signal, token = APP_TOKEN } = {}) {
   return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
 }
 
-// general helper cho dạng { data, pagination }
 export async function fetchPaged(path, { signal, token = APP_TOKEN } = {}) {
   const json = await fetchJson(path, { signal, token });
   return {
@@ -41,19 +40,18 @@ export async function fetchPaged(path, { signal, token = APP_TOKEN } = {}) {
   };
 }
 
-export async function fetchPersonsByName(
-  { name, page = 1, limit = 10 },
+// Fetch nhiều trang persons (mặc định 20 pages × 100 = 2000 persons)
+export async function fetchPersonsPages(
+  { pages = 20, limit = 100 },
   { signal, token = APP_TOKEN } = {}
 ) {
-  const qs = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
+  const requests = Array.from({ length: pages }, (_, i) => {
+    const page = i + 1;
+    return fetchPaged(`/persons?page=${page}&limit=${limit}`, { signal, token });
   });
 
-  // giả định backend hỗ trợ filter theo name
-  if (name) qs.set("name", name);
-
-  return fetchPaged(`/persons?${qs.toString()}`, { signal, token });
+  const results = await Promise.all(requests);
+  return results.flatMap((r) => r.data || []);
 }
 
 export async function fetchPersonById(id, { signal, token = APP_TOKEN } = {}) {
@@ -66,9 +64,10 @@ export function uniqById(items = []) {
   return Array.from(map.values());
 }
 
+// Generic: fetch nhiều trang của một endpoint trả movies
 export async function fetchManyPages(
   endpoint,
-  { pages = 3, limit = 10, signal, token = APP_TOKEN } = {}
+  { pages = 50, limit = 100, signal, token = APP_TOKEN } = {}
 ) {
   const requests = Array.from({ length: pages }, (_, i) => {
     const page = i + 1;
