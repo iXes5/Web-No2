@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchMovieById, getImageUrl, APP_TOKEN } from "@/lib/moviesApi";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 // Helpers đơn giản
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
@@ -32,10 +33,12 @@ export default function MoviesDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Reviews states
+  // Reviews states + pagination (5 / trang)
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [errorReviews, setErrorReviews] = useState("");
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const REVIEWS_PAGE_SIZE = 5;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,11 +81,10 @@ export default function MoviesDetail() {
           throw new Error(text || res.statusText || `HTTP ${res.status}`);
         }
         const data = await res.json();
-        // Log để bạn xem format object thực tế
         console.log("[MoviesDetail] /movies/{id}/reviews response", data);
-        // Theo format bạn đưa: { movie_id, movie_title, data: [...], pagination: {...} }
         const rows = Array.isArray(data?.data) ? data.data : [];
         setReviews(rows);
+        setReviewsPage(1); // reset page khi id thay đổi
       } catch (e) {
         if (e?.name === "AbortError") return;
         setErrorReviews(e?.message || "Failed to load reviews");
@@ -120,17 +122,19 @@ export default function MoviesDetail() {
   const languages = Array.isArray(movie.languages) ? movie.languages : [];
   const genres = Array.isArray(movie.genres) ? movie.genres : [];
 
-  // Lấy directors, actors dưới dạng {id?, name}
   const directors = uniqueByIdOrName(toPeople(movie.directors ?? movie.director));
   const cast = uniqueByIdOrName(toPeople(movie.actors ?? movie.cast ?? movie.stars));
 
-  // Ratings & Box office (tuỳ chọn)
   const ratings = movie.ratings || {};
   const boxOffice = movie.box_office || {};
 
-  // Plot để CUỐI CÙNG trong box thông tin phim
   const plot =
     movie.summary || movie.short_description || stripHtml(movie.plot_full || "");
+
+  // Reviews pagination slice
+  const reviewsTotalPages = Math.max(1, Math.ceil(reviews.length / REVIEWS_PAGE_SIZE));
+  const reviewsStartIdx = (reviewsPage - 1) * REVIEWS_PAGE_SIZE;
+  const reviewsSlice = reviews.slice(reviewsStartIdx, reviewsStartIdx + REVIEWS_PAGE_SIZE);
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-12">
@@ -158,7 +162,6 @@ export default function MoviesDetail() {
               {title} {year ? <span className="text-muted-foreground text-xl">({year})</span> : null}
             </h1>
 
-            {/* Thông tin ngắn hữu ích */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {fullTitle && (
                 <div className="text-sm">
@@ -192,7 +195,6 @@ export default function MoviesDetail() {
               )}
             </div>
 
-            {/* Genres */}
             {genres.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {genres.map((g) => (
@@ -206,7 +208,6 @@ export default function MoviesDetail() {
               </div>
             )}
 
-            {/* Director & Cast: item có id → Link tới /person/:id, không có id → span */}
             <div className="space-y-3">
               <div>
                 <div className="text-sm font-semibold">Director</div>
@@ -263,7 +264,6 @@ export default function MoviesDetail() {
               </div>
             </div>
 
-            {/* Ratings */}
             {(ratings.imDb ||
               ratings.metacritic ||
               ratings.theMovieDb ||
@@ -281,7 +281,6 @@ export default function MoviesDetail() {
               </div>
             )}
 
-            {/* Box Office */}
             {(boxOffice.budget ||
               boxOffice.openingWeekendUSA ||
               boxOffice.grossUSA ||
@@ -297,7 +296,6 @@ export default function MoviesDetail() {
               </div>
             )}
 
-            {/* Plot (CUỐI CÙNG trong box info) */}
             {plot && (
               <div className="pt-2">
                 <div className="text-sm font-semibold mb-1">Plot</div>
@@ -308,38 +306,75 @@ export default function MoviesDetail() {
         </div>
       </section>
 
-      {/* BOX 2: Reviews */}
+      {/* BOX 2: Reviews (+ pagination 5 / trang) */}
       <section className="mt-6 rounded-lg border bg-card p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-3">Reviews</h2>
         {loadingReviews ? (
           <div className="text-sm text-muted-foreground">Loading reviews...</div>
         ) : errorReviews ? (
           <div className="text-sm text-destructive">{errorReviews}</div>
-        ) : reviews.length === 0 ? (
+        ) : reviewsSlice.length === 0 ? (
           <div className="text-sm text-muted-foreground">No reviews.</div>
         ) : (
-          <div className="space-y-4">
-            {reviews.map((r) => (
-              <div key={r.id} className="rounded-md border p-3 bg-background">
-                <div className="text-sm font-semibold">
-                  {r.title || "Untitled review"}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-1">
-                  {r.username ? <span>by {r.username}</span> : null}
-                  {r.date ? <span>• {new Date(r.date).toLocaleDateString()}</span> : null}
-                  {typeof r.rate === "number" ? <span>• {r.rate}/10</span> : null}
-                  {r.warning_spoilers ? (
-                    <span className="rounded bg-yellow-100 text-yellow-800 px-1 py-0.5">Spoilers</span>
+          <>
+            <div className="space-y-4">
+              {reviewsSlice.map((r) => (
+                <div key={r.id} className="rounded-md border p-3 bg-background">
+                  <div className="text-sm font-semibold">
+                    {r.title || "Untitled review"}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-1">
+                    {r.username ? <span>by {r.username}</span> : null}
+                    {r.date ? <span>• {new Date(r.date).toLocaleDateString()}</span> : null}
+                    {typeof r.rate === "number" ? <span>• {r.rate}/10</span> : null}
+                    {r.warning_spoilers ? (
+                      <span className="rounded bg-yellow-100 text-yellow-800 px-1 py-0.5">Spoilers</span>
+                    ) : null}
+                  </div>
+                  {r.content ? (
+                    <div className="mt-2 text-sm leading-relaxed whitespace-pre-line">
+                      {r.content}
+                    </div>
                   ) : null}
                 </div>
-                {r.content ? (
-                  <div className="mt-2 text-sm leading-relaxed whitespace-pre-line">
-                    {r.content}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Pagination: 5 / trang */}
+            <div className="mt-4 flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setReviewsPage((p) => Math.max(1, p - 1));
+                      }}
+                      className={reviewsPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+
+                  <PaginationItem>
+                    <PaginationLink href="#" onClick={(e) => e.preventDefault()} isActive>
+                      {reviewsPage} / {reviewsTotalPages}
+                    </PaginationLink>
+                  </PaginationItem>
+
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setReviewsPage((p) => Math.min(reviewsTotalPages, p + 1));
+                      }}
+                      className={reviewsPage >= reviewsTotalPages ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </>
         )}
       </section>
     </main>
