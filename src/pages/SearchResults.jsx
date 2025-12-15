@@ -117,7 +117,7 @@ export default function SearchResults() {
   const [errorTitle, setErrorTitle] = useState("");
   const [titleTotalPages, setTitleTotalPages] = useState(1);
 
-  // Group 2: Movies từ persons trùng tên CHÍNH XÁC (client-side pagination 9/trang)
+  // Group 2: Movies từ persons (lọc persons có keyword TRONG name), client-side pagination 9/trang
   const [moviesByPersons, setMoviesByPersons] = useState([]);
   const [loadingPersons, setLoadingPersons] = useState(false);
   const [errorPersons, setErrorPersons] = useState("");
@@ -166,7 +166,8 @@ export default function SearchResults() {
     return () => controller.abort();
   }, [canSearch, query, uiPage]);
 
-  // Movies by persons named "{query}" (exact match)
+  // Movies by persons named: fetch persons rộng, LỌC những person có keyword TRONG name (case-insensitive, includes),
+  // rồi fetch chi tiết từng person đó để lấy known_for, gộp lại thành danh sách phim.
   useEffect(() => {
     if (!canSearch) {
       setMoviesByPersons([]);
@@ -179,33 +180,37 @@ export default function SearchResults() {
         setLoadingPersons(true);
         setErrorPersons("");
 
+        // 1) Lấy diện rộng danh sách persons
         const allPersons = await fetchPersonsPages(
           { pages: PERSONS_FETCH.PAGES, limit: PERSONS_FETCH.LIMIT },
           { signal: controller.signal }
         );
 
+        // 2) Lọc person có keyword trong name (case-insensitive, includes)
         const qLower = query.toLowerCase();
-        const matched = allPersons.filter(
-          (p) => (p?.name || "").trim().toLowerCase() === qLower
+        const matchedPersons = allPersons.filter((p) =>
+          (p?.name || "").toLowerCase().includes(qLower)
         );
 
-        if (!matched.length) {
+        if (!matchedPersons.length) {
           setMoviesByPersons([]);
           setPersonsPage(1);
           return;
         }
 
+        // 3) Lấy chi tiết từng person để có known_for
         const details = await Promise.all(
-          matched.map((p) => fetchPersonById(p.id, { signal: controller.signal }))
+          matchedPersons.map((p) => fetchPersonById(p.id, { signal: controller.signal }))
         );
 
+        // 4) Gộp tất cả known_for rồi loại trùng theo movie id
         const allMoviesRaw = details.flatMap((d) =>
           Array.isArray(d?.known_for) ? d.known_for : []
         );
 
         const normalized = uniqById(allMoviesRaw.map(normalizeMovie));
         setMoviesByPersons(normalized);
-        setPersonsPage(1);
+        setPersonsPage(1); // reset trang khi đổi query
       } catch (e) {
         if (e?.name !== "AbortError") setErrorPersons(e?.message || "Search persons failed");
       } finally {
