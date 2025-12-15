@@ -5,12 +5,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
-// API: POST /users/register
-// { username, email, password, phone, dob }
-// 201 -> User registered successfully
-// 409 -> User already exists
-// 401 -> Unauthorized
-
 const registerSchema = z.object({
   username: z
     .string()

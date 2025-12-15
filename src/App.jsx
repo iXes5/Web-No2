@@ -6,6 +6,8 @@ import SearchResults from "@/pages/SearchResults";
 import MoviesDetail from "@/pages/MoviesDetail";
 import PersonDetail from "@/pages/PersonDetail";
 import Loading from "@/components/Loading";
+import LoginPage from "@/pages/Login";
+import RegisterPage from "@/pages/Register";
 import { Routes, Route } from "react-router-dom";
 
 export default function App() {
@@ -21,6 +23,8 @@ export default function App() {
         <Route path="/search" element={<SearchResults />} />
         <Route path="/movies/:id" element={<MoviesDetail />} />
         <Route path="/person/:id" element={<PersonDetail />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
       </Routes>
 
       <Footer />

@@ -5,10 +5,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
-// API: POST /users/login { username, password }
-// 200 -> { message, token, user }
-// 401 -> Invalid credentials
-
 const loginSchema = z.object({
   username: z.string().min(1, "Vui lòng nhập username"),
   password: z.string().min(1, "Vui lòng nhập password"),
