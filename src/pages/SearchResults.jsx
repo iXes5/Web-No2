@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { fetchMovies, getImageUrl } from "@/lib/moviesApi";
 import {
   Pagination,
@@ -16,7 +16,12 @@ const APP_TOKEN =
 
 function MovieGridCard({ movie }) {
   return (
-    <div className="overflow-hidden rounded-md border bg-card">
+    <Link
+      to={`/movies/${movie.id}`}
+      className="block overflow-hidden rounded-md border bg-card cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      aria-label={`Open details for ${movie.title}`}
+      title={movie.title}
+    >
       {movie.image ? (
         <img
           src={getImageUrl(movie.image)}
@@ -41,7 +46,7 @@ function MovieGridCard({ movie }) {
           </div>
         ) : null}
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -135,13 +140,6 @@ export default function SearchResults() {
       return p;
     });
   }
-
-  // Nếu API của bạn có totalPages, bạn thay logic này:
-  // const totalPages = ...
-  // const pageItems = rangePages(page, totalPages, 1)
-  //
-  // Còn hiện tại: chưa có total => chỉ render tối giản: Prev, current, Next.
-  // (vẫn dùng component Pagination của shadcn)
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-10">

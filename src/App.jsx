@@ -3,6 +3,7 @@ import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import Main from "@/components/Main";
 import SearchResults from "@/pages/SearchResults";
+import MoviesDetail from "@/pages/MoviesDetail";
 import { Routes, Route } from "react-router-dom";
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Main />} />
         <Route path="/search" element={<SearchResults />} />
+        <Route path="/movies/:id" element={<MoviesDetail />} />
       </Routes>
 
       <Footer />

@@ -33,7 +33,6 @@ export default function NavBar() {
           <Home className="h-5 w-5" />
         </button>
 
-        {/* form để Enter cũng search */}
         <form onSubmit={onSubmit} className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />

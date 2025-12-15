@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { getImageUrl } from "@/lib/moviesApi";
 import {
   Carousel,
@@ -15,7 +16,7 @@ function chunk(arr, size) {
 }
 
 export default function MoviesCarousel({ title, movies = [] }) {
-  const pages = useMemo(() => chunk(movies, 5), [movies]);
+  const pages = useMemo(() => chunk(movies, 3), [movies]);
   const [hoveredId, setHoveredId] = useState(null);
 
   if (!pages.length) return null;
@@ -25,11 +26,10 @@ export default function MoviesCarousel({ title, movies = [] }) {
       <div className="mb-3 text-lg font-semibold">{title}</div>
 
       <Carousel opts={{ align: "start", loop: true }} className="w-full">
-        {/* tăng khoảng thở để hover scale 1.5x đỡ bị cắt theo chiều dọc */}
-        <CarouselContent className="py-16 -my-16">
+        <CarouselContent className="py-10 -my-10 -ml-1">
           {pages.map((page, idx) => (
-            <CarouselItem key={idx}>
-              <div className="grid grid-cols-5 gap-3 py-2">
+            <CarouselItem key={idx} className="pl-1">
+              <div className="grid grid-cols-3 gap-1 py-2">
                 {page.map((m) => {
                   const isHover = hoveredId === m.id;
 
@@ -40,12 +40,17 @@ export default function MoviesCarousel({ title, movies = [] }) {
                       onMouseEnter={() => setHoveredId(m.id)}
                       onMouseLeave={() => setHoveredId(null)}
                     >
-                      <div
+                      <Link
+                        to={`/movies/${m.id}`}
                         className={[
+                          "mx-auto block w-full max-w-[300px]",
                           "relative overflow-hidden rounded-md border bg-card",
                           "origin-center transition-transform duration-200 ease-out",
-                          isHover ? "z-50 scale-150 shadow-2xl" : "z-0 scale-100",
+                          "cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                          isHover ? "z-50 scale-135 shadow-2xl" : "z-0 scale-100",
                         ].join(" ")}
+                        aria-label={`Open details for ${m.title}`}
+                        title={m.title}
                       >
                         {m.image ? (
                           <img
@@ -70,7 +75,7 @@ export default function MoviesCarousel({ title, movies = [] }) {
                             ) : null}
                           </div>
                         )}
-                      </div>
+                      </Link>
                     </div>
                   );
                 })}

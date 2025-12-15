@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { getImageUrl } from "@/lib/moviesApi";
 import {
   Carousel,
@@ -17,7 +18,12 @@ export default function PosterCarousel({ movies = [] }) {
           {movies.map((m) => (
             <CarouselItem key={m.id} className="flex justify-center">
               <div className="w-[320px] sm:w-[380px] md:w-[430px]">
-                <div className="relative overflow-hidden rounded-md border bg-card">
+                <Link
+                  to={`/movies/${m.id}`}
+                  className="block relative overflow-hidden rounded-md border bg-card cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  aria-label={`Open details for ${m.title}`}
+                  title={m.title}
+                >
                   {m.image ? (
                     <img
                       src={getImageUrl(m.image)}
@@ -41,7 +47,7 @@ export default function PosterCarousel({ movies = [] }) {
                       </div>
                     )}
                   </div>
-                </div>
+                </Link>
               </div>
             </CarouselItem>
           ))}
