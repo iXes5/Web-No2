@@ -5,6 +5,7 @@ import Main from "@/components/Main";
 import SearchResults from "@/pages/SearchResults";
 import MoviesDetail from "@/pages/MoviesDetail";
 import PersonDetail from "@/pages/PersonDetail";
+import Loading from "@/components/Loading";
 import { Routes, Route } from "react-router-dom";
 
 export default function App() {
@@ -12,6 +13,9 @@ export default function App() {
     <>
       <Header />
       <NavBar />
+
+      {/* Hiệu ứng chuyển route */}
+      <Loading />
 
       <Routes>
         <Route path="/" element={<Main />} />
