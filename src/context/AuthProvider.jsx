@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/http";
 
 const AuthCtx = createContext(null);
 
@@ -6,41 +7,30 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
 
-  // Khởi tạo từ localStorage
+  // Load token/user từ localStorage
   useEffect(() => {
     const t = localStorage.getItem("app_token");
     const u = localStorage.getItem("app_user");
     if (t) setToken(t);
     if (u) {
-      try {
-        setUser(JSON.parse(u));
-      } catch {
-        // ignore
-      }
+      try { setUser(JSON.parse(u)); } catch {}
     }
   }, []);
 
   const isAuthenticated = !!token && !!user;
 
-  // API: POST /users/register { username, email, password, phone, dob }
+  // Đăng ký
   async function register(payload) {
-    // Giả định payload đã được validate bằng zod/react-hook-form ở UI
     try {
-      const res = await fetch("/users/register", {
+      const res = await apiFetch("/users/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (res.status === 201) {
-        return { ok: true };
-      }
-      if (res.status === 409) {
-        return { ok: false, error: "User already exists" };
-      }
-      if (res.status === 401) {
-        return { ok: false, error: "Unauthorized" };
-      }
+      if (res.status === 201) return { ok: true };
+      if (res.status === 409) return { ok: false, error: "User already exists" };
+      if (res.status === 401) return { ok: false, error: "Unauthorized" };
+
       const text = await res.text().catch(() => "");
       return { ok: false, error: text || `Register failed (HTTP ${res.status})` };
     } catch (e) {
@@ -48,12 +38,11 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // API: POST /users/login { username, password }
+  // Đăng nhập
   async function login({ username, password }) {
     try {
-      const res = await fetch("/users/login", {
+      const res = await apiFetch("/users/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
@@ -69,9 +58,8 @@ export function AuthProvider({ children }) {
         }
         return { ok: true };
       }
-      if (res.status === 401) {
-        return { ok: false, error: "Invalid credentials" };
-      }
+      if (res.status === 401) return { ok: false, error: "Invalid credentials" };
+
       const text = await res.text().catch(() => "");
       return { ok: false, error: text || `Login failed (HTTP ${res.status})` };
     } catch (e) {
@@ -79,6 +67,7 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Logout
   function logout() {
     localStorage.removeItem("app_token");
     localStorage.removeItem("app_user");
@@ -86,8 +75,15 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  // Cho phép dán token thủ công (debug)
+  function setTokenManually(t) {
+    if (!t) return;
+    localStorage.setItem("app_token", t);
+    setToken(t);
+  }
+
   const value = useMemo(
-    () => ({ token, user, isAuthenticated, register, login, logout }),
+    () => ({ token, user, isAuthenticated, register, login, logout, setTokenManually }),
     [token, user, isAuthenticated]
   );
 
