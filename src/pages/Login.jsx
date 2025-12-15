@@ -1,98 +1,104 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
-// Lưu ý: AuthProvider sẽ tích hợp sau. Hiện tại chỉ gọi API trực tiếp.
-// API spec:
-// POST /users/login { username, password }
-// 200 -> { message, token, user: { id, username, email } }
+// API: POST /users/login { username, password }
+// 200 -> { message, token, user }
 // 401 -> Invalid credentials
+
+const loginSchema = z.object({
+  username: z.string().min(1, "Vui lòng nhập username"),
+  password: z.string().min(1, "Vui lòng nhập password"),
+});
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: "", password: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  function onChange(e) {
-    const { id, value } = e.target;
-    setForm((f) => ({ ...f, [id]: value }));
-  }
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: "", password: "" },
+  });
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    setErrorMsg("");
-    setSubmitting(true);
-
+  async function onSubmit(values) {
     try {
-      const res = await fetch(`/api/users/login`, {
+      const res = await fetch("/api/users/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
-          username: form.username.trim(),
-          password: form.password,
+          username: values.username.trim(),
+          password: values.password,
         }),
       });
 
       if (res.status === 200) {
         const json = await res.json().catch(() => ({}));
-        // Tạm thời lưu token vào localStorage, AuthProvider sẽ refactor sau
+        // Lưu tạm token/user cho lần sau (AuthProvider sẽ refactor sau)
         if (json?.token) localStorage.setItem("app_token", json.token);
-        // Có thể lưu user tạm thời
         if (json?.user) localStorage.setItem("app_user", JSON.stringify(json.user));
+        reset();
         navigate("/");
         return;
       }
 
       if (res.status === 401) {
-        setErrorMsg("Invalid credentials");
+        setError("username", { type: "manual", message: "Invalid credentials" });
         return;
       }
 
       const text = await res.text().catch(() => "");
-      setErrorMsg(text || `Login failed (HTTP ${res.status})`);
-    } catch (err) {
-      setErrorMsg(err?.message || "Network error");
-    } finally {
-      setSubmitting(false);
+      setError("username", { type: "manual", message: text || `Login failed (HTTP ${res.status})` });
+    } catch (e) {
+      setError("username", { type: "manual", message: e?.message || "Network error" });
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f5f9ff] px-4">
-      <div className="w-[340px]">
-        <div className="rounded-2xl border border-[#e6eefc] shadow-sm bg-white">
-          <div className="p-5 flex items-start justify-between">
-            <div>
-              <div className="text-sm font-semibold">Login</div>
-              <div className="text-xs text-slate-400">Sign in to continue</div>
+      <div className="w-[360px]">
+        <Card className="rounded-2xl border border-[#e6eefc] shadow-sm">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-sm">Login</CardTitle>
+                <CardDescription className="text-xs text-slate-400">Sign in to continue</CardDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/register")}
+                className="text-sm text-sky-500 hover:underline ml-2"
+              >
+                Sign Up
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => navigate("/register")}
-              className="text-sm text-sky-500 hover:underline ml-2"
-            >
-              Sign Up
-            </button>
-          </div>
+          </CardHeader>
 
-          <div className="p-5">
-            <form onSubmit={onSubmit} className="space-y-4">
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label htmlFor="username" className="block text-xs font-medium text-slate-600 mb-1">
                   Username
                 </label>
                 <input
                   id="username"
-                  value={form.username}
-                  onChange={onChange}
-                  className="w-full rounded-full border px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 border-[#eef3fb] focus:ring-sky-200"
+                  {...register("username")}
+                  className={`w-full rounded-full border px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 ${
+                    errors.username ? "border-red-300 focus:ring-red-200" : "border-[#eef3fb] focus:ring-sky-200"
+                  }`}
                   placeholder="Enter your username"
                   autoComplete="username"
-                  required
                 />
+                {errors.username ? (
+                  <p className="text-xs text-red-600 mt-1">{errors.username.message}</p>
+                ) : null}
               </div>
 
               <div>
@@ -102,28 +108,31 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type="password"
-                  value={form.password}
-                  onChange={onChange}
-                  className="w-full rounded-full border px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 border-[#eef3fb] focus:ring-sky-200"
+                  {...register("password")}
+                  className={`w-full rounded-full border px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 ${
+                    errors.password ? "border-red-300 focus:ring-red-200" : "border-[#eef3fb] focus:ring-sky-200"
+                  }`}
                   placeholder="••••••"
                   autoComplete="current-password"
-                  required
                 />
+                {errors.password ? (
+                  <p className="text-xs text-red-600 mt-1">{errors.password.message}</p>
+                ) : null}
               </div>
-
-              {errorMsg ? <p className="text-xs text-red-600">{errorMsg}</p> : null}
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={isSubmitting}
                 className="w-full rounded-full bg-[#7FB0FF] hover:bg-[#6ea6f6] text-white font-medium py-2 shadow-sm transition disabled:opacity-70 mt-2"
                 aria-label="Log in"
               >
-                {submitting ? "Đang xử lý..." : "LogIn"}
+                {isSubmitting ? "Đang xử lý..." : "LogIn"}
               </button>
             </form>
-          </div>
-        </div>
+          </CardContent>
+
+          <CardFooter />
+        </Card>
       </div>
     </div>
   );
