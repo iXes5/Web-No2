@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Star } from "lucide-react";
 import { getImageUrl } from "@/lib/moviesApi";
 import {
   Carousel,
@@ -41,9 +42,11 @@ export default function PosterCarousel({ movies = [] }) {
                     <div className="text-base sm:text-lg font-semibold">
                       {m.title} {m.year ? `(${m.year})` : ""}
                     </div>
+
                     {typeof m.rate === "number" && (
-                      <div className="mt-1 text-xs sm:text-sm opacity-90">
-                        ⭐ {m.rate}
+                      <div className="mt-1 flex items-center gap-1 text-xs sm:text-sm opacity-90">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span>{m.rate}</span>
                       </div>
                     )}
                   </div>
