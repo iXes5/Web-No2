@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/http";
 import Spinner from "@/components/ui/spinner";
 import { Link } from "react-router-dom";
-import { getImageUrl } from "@/lib/moviesApi";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,9 +12,18 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
-// Pagination helpers
-const UI_PAGE_SIZE = 9;
+// Layout: 5 columns x 5 rows = 25 items per page
+const UI_PAGE_SIZE = 25;
+
 function getPageRange(current, total, maxButtons = 9) {
   if (!total || total < 1) return [1];
   const half = Math.floor(maxButtons / 2);
@@ -28,32 +36,31 @@ function getPageRange(current, total, maxButtons = 9) {
 }
 
 function MovieCard({ movie, onAskDelete }) {
-  const title = movie?.title || movie?.name || "Untitled";
-  const year = movie?.year || movie?.release_year || "";
-  const img = movie?.image ? getImageUrl(movie.image) : "";
-  const mid = movie?.id ?? movie?.movieId ?? movie?.movie_id;
+  // Favorites object shape (example provided):
+  // { id: "tt4154796", title: "Avengers: Endgame", image_url: "https://..." , release_year: 2019, ... }
+  const mid = movie?.id;
+  const title = movie?.title || "Untitled";
+  const img = movie?.image_url || "";
 
   return (
     <div className="block overflow-hidden rounded-md border bg-card">
-      <Link to={mid ? `/movies/${mid}` : "#"} className="block hover:scale-105 transition-transform">
+      <Link
+        to={mid ? `/movies/${mid}` : "#"}
+        className="block hover:scale-105 transition-transform"
+        title={title}
+      >
         {img ? (
           <img src={img} alt={title} className="aspect-[2/3] w-full object-cover" loading="lazy" />
         ) : (
           <div className="aspect-[2/3] w-full bg-muted" />
         )}
         <div className="px-3 py-2 text-center">
-          <div className="text-sm font-medium">
-            {title} {year ? `(${year})` : ""}
-          </div>
+          <div className="text-sm font-medium line-clamp-2">{title}</div>
         </div>
       </Link>
       <div className="px-3 pb-3">
         {mid ? (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => onAskDelete(mid, title)}
-          >
+          <Button variant="outline" className="w-full" onClick={() => onAskDelete(mid, title)}>
             Xóa khỏi yêu thích
           </Button>
         ) : null}
@@ -122,13 +129,24 @@ export default function Favorites() {
         throw new Error(text || `Delete failed (HTTP ${res.status})`);
       }
       // Remove locally
-      setItems((prev) => prev.filter((m) => String(m?.id ?? m?.movieId ?? m?.movie_id) !== String(pendingDelete.id)));
+      setItems((prev) => prev.filter((m) => String(m?.id) !== String(pendingDelete.id)));
       setConfirmOpen(false);
+
+      // Adjust current page if needed (e.g., page becomes empty)
+      setUiPage((p) => {
+        const newTotal = Math.max(1, Math.ceil((prevLengthAfterDelete(prev)) / UI_PAGE_SIZE));
+        return Math.min(p, newTotal);
+      });
     } catch (e) {
       setDeleteErr(e?.message || "Delete failed");
     } finally {
       setDeleting(false);
     }
+  }
+
+  // Helper to compute new length after delete for page adjust
+  function prevLengthAfterDelete(prev) {
+    return Math.max(0, prev.length - 1);
   }
 
   return (
@@ -142,41 +160,55 @@ export default function Favorites() {
         <div className="py-12 text-center text-muted-foreground">No favorites yet.</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {/* Grid: 5 columns x 5 rows per page */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {pageSlice.map((m) => (
               <MovieCard key={m.id || m.title} movie={m} onAskDelete={onAskDelete} />
             ))}
           </div>
 
-          {/* Pagination: tối đa 9 nút số trang */}
+          {/* Pagination (shadcn) */}
           <div className="mt-6 flex justify-center">
-            <div className="inline-flex items-center gap-1 rounded-md border bg-card p-1">
-              <Button
-                variant="outline"
-                onClick={() => setUiPage((p) => Math.max(1, p - 1))}
-                disabled={uiPage <= 1}
-              >
-                Prev
-              </Button>
-              <div className="flex items-center gap-1 px-2">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setUiPage((p) => Math.max(1, p - 1));
+                    }}
+                    className={uiPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+
                 {pageNumbers.map((p) => (
-                  <Button
-                    key={p}
-                    variant={p === uiPage ? "default" : "outline"}
-                    onClick={() => setUiPage(p)}
-                  >
-                    {p}
-                  </Button>
+                  <PaginationItem key={p}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (p !== uiPage) setUiPage(p);
+                      }}
+                      isActive={p === uiPage}
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
                 ))}
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setUiPage((p) => Math.min(totalPages, p + 1))}
-                disabled={uiPage >= totalPages}
-              >
-                Next
-              </Button>
-            </div>
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setUiPage((p) => Math.min(totalPages, p + 1));
+                    }}
+                    className={uiPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         </>
       )}
