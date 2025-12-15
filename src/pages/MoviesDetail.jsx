@@ -116,14 +116,7 @@ export default function MoviesDetail() {
 
   return (
     <main className="max-w-[1200px] mx-auto mt-6 px-4 pb-12">
-      {/* Breadcrumb */}
-      <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/" className="hover:underline">Home</Link>
-        <span>/</span>
-        <span className="text-foreground line-clamp-1">{title}</span>
-      </div>
-
-      {/* Ảnh bên trái (to hơn), thông tin bên phải */}
+      {/* Ảnh bên trái, thông tin bên phải */}
       <div className="flex items-start gap-6">
         {/* Trái: Poster lớn hơn */}
         <div className="shrink-0 w-[240px] sm:w-[300px] md:w-[360px]">
