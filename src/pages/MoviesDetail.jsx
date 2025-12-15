@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchMovieById, getImageUrl } from "@/lib/moviesApi";
+import { fetchMovieById, getImageUrl, APP_TOKEN } from "@/lib/moviesApi";
 
 // Helpers đơn giản
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
@@ -32,6 +32,11 @@ export default function MoviesDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Reviews states
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [errorReviews, setErrorReviews] = useState("");
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -49,6 +54,42 @@ export default function MoviesDetail() {
     }
 
     load();
+    return () => controller.abort();
+  }, [id]);
+
+  // Fetch Reviews từ /api/movies/{movieId}/reviews và log format
+  useEffect(() => {
+    if (!id) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        setLoadingReviews(true);
+        setErrorReviews("");
+        const res = await fetch(`/api/movies/${encodeURIComponent(id)}/reviews`, {
+          method: "GET",
+          headers: {
+            "x-app-token": APP_TOKEN,
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || res.statusText || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        // Log đúng như bạn yêu cầu để bạn xem format object
+        console.log("[MoviesDetail] /movies/{id}/reviews response", data);
+        // Tạm thời chuẩn hoá đơn giản: nếu data.data là array dùng nó, nếu không thử dùng data trực tiếp
+        const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+        setReviews(rows);
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        setErrorReviews(e?.message || "Failed to load reviews");
+      } finally {
+        setLoadingReviews(false);
+      }
+    })();
     return () => controller.abort();
   }, [id]);
 
@@ -269,6 +310,35 @@ export default function MoviesDetail() {
               <p className="text-sm leading-relaxed">{plot}</p>
             </div>
           )}
+
+          {/* Reviews bên dưới cùng: tạm thời hiển thị đơn giản + console.log ở useEffect phía trên */}
+          <section className="mt-6">
+            <h2 className="text-lg font-semibold mb-3">Reviews</h2>
+            {loadingReviews ? (
+              <div className="text-sm text-muted-foreground">Loading reviews...</div>
+            ) : errorReviews ? (
+              <div className="text-sm text-destructive">{errorReviews}</div>
+            ) : reviews.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No reviews.</div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((r, idx) => (
+                  <div key={r.id || idx} className="rounded-md border p-3">
+                    <div className="text-sm font-semibold">
+                      {r.title || "Untitled review"}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {r.user ? `by ${r.user}` : ""} {r.date ? `• ${new Date(r.date).toLocaleDateString()}` : ""}
+                      {r.rate ? ` • ${r.rate}/10` : ""}
+                    </div>
+                    <div className="mt-2 text-sm leading-relaxed">
+                      {r.content || r.text || ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </main>
